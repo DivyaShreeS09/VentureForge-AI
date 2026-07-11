@@ -1,0 +1,58 @@
+# Environment
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+backend/.venv/
+.pytest_cache/
+backend/.pytest_cache/
+ml/.pytest_cache/
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/coverage/
+*.tsbuildinfo
+
+# ML artifacts & data (never committed — see ml/README.md)
+ml/data/raw/*
+ml/data/processed/*
+ml/models/*
+!ml/data/raw/.gitkeep
+!ml/data/processed/.gitkeep
+!ml/models/.gitkeep
+*.pkl
+*.joblib
+*.onnx
+*.csv
+*.parquet
+
+# Kaggle credentials — never read from or committed to this repo (see scripts/download_datasets.py)
+kaggle.json
+.kaggle/
+
+# Test/coverage artifacts
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Claude Code / AI agent session state — local tooling only, not part of the project
+.claude/

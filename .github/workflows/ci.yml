@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ml:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r ml/requirements.txt
+      - run: pytest ml/tests
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r backend/requirements.txt -r ml/requirements.txt
+      # Trains on the generated bootstrap corpus (no internet/dataset download, ~seconds) so the
+      # API/orchestrator tests exercise a real artifact end to end. Never a real production
+      # dataset — see ml/DATASETS.md.
+      - run: python -m ml.src.training.train_industry_classifier
+      - working-directory: backend
+        run: pytest
+      - run: pytest tests/integration
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install
+      - run: npm run test
+      - run: npm run build

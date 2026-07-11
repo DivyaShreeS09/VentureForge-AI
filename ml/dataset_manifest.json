@@ -1,0 +1,59 @@
+{
+  "datasets": [
+    {
+      "name": "startup-industry-bootstrap",
+      "source": "generated",
+      "kaggle_id": null,
+      "path": "ml/src/preprocessing/bootstrap_data.py",
+      "task": "industry_classification",
+      "status": "approved_for_bootstrap_only",
+      "notes": "Deterministically generated (fixed seed) by ml/src/preprocessing/bootstrap_data.py from template phrase pools authored by Student 1, to bootstrap and unit-test the industry classification pipeline end to end. Not representative of the real-world label distribution or company diversity. Must be replaced or substantially augmented with a real, schema-inspected corpus before any production accuracy claim is made."
+    },
+    {
+      "name": "yc-companies-2012-2024",
+      "source": "kaggle",
+      "kaggle_id": "ibrahimqasimi/y-combinator-companies-2012-2024",
+      "path": "ml/data/raw/yc_companies_2012_2024_raw.csv",
+      "task": "industry_classification",
+      "status": "approved",
+      "license": "CC BY 4.0 (Attribution 4.0 International)",
+      "notes": "4,522 real Y Combinator-backed companies, 26 batches (W12-W24, 2012-2024), columns include name/one_liner/long_description/industry/subindustry/status. Schema-inspected: 9 raw industry labels; 'unspecified' (19 rows, not a real label) and 'government' (32 rows, below the 50-row minimum for reliable stratified 5-fold CV) excluded per ml/src/preprocessing/prepare_yc_dataset.py, leaving 7 classes. B2B is the dominant class (~50%), reflecting YC's actual portfolio composition, not a data defect; mitigated with class_weight='balanced' in every candidate model, not by fabricating balance. Transform script: ml/src/preprocessing/prepare_yc_dataset.py. Full schema profile in ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-company-classification-scrape",
+      "source": "kaggle",
+      "kaggle_id": "charanpuvvala/company-classification",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "73,974 rows, 13 well-balanced classes, real scraped homepage text — schema was strong, but the dataset's Kaggle license field is 'unknown' (no license specified by the publisher). Rejected on licensing grounds, not schema quality: redistribution/training rights are not established. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-crunchbase-startup-outcomes",
+      "source": "kaggle",
+      "kaggle_id": "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "66,368 rows, CDLA-Sharing-1.0 license (acceptable), but no free-text description column exists (only name + multi-label category_list + funding metadata) — not usable for a name+description text classifier. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-startup-success-prediction",
+      "source": "kaggle",
+      "kaggle_id": "manishkc06/startup-success-prediction",
+      "path": null,
+      "task": "funding_readiness",
+      "status": "rejected",
+      "notes": "923 rows of structured Crunchbase-derived features (funding rounds, milestones, relationships) with a binary acquired/closed outcome. No free-text input, small n, and the outcome is confounded by company age and survivorship bias — not a defensible funding-readiness target. This is a Student 2 'success prediction' dataset shape, not Student 1 scope. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-funding-outcomes",
+      "source": "kaggle",
+      "kaggle_id": null,
+      "path": "ml/data/raw/kaggle_funding_outcomes.csv",
+      "task": "funding_readiness",
+      "status": "rejected",
+      "notes": "No supervised funding-readiness dataset with a defensible target, sufficient observations, form-available features, and leakage-free labeling was identified. See ml/DATASETS.md. Funding readiness is implemented as a transparent deterministic rubric instead (see backend/app/ml/funding_readiness.py)."
+    }
+  ]
+}

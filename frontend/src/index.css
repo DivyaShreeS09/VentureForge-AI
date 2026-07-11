@@ -1,0 +1,149 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* Centralized design tokens, derived directly from the finalized VentureForgeAI logo.
+     Tailwind utility classes (bg-void-950, text-signal-400, etc.) are the primary way components
+     consume these; these raw custom properties exist for the few places that need a literal color
+     value outside Tailwind's class system (canvas particle rendering, inline SVG gradients). */
+  --vf-bg: #030308;
+  --vf-surface: #090910;
+  --vf-surface-elevated: #11111a;
+  --vf-border: rgba(245, 247, 255, 0.1);
+
+  --vf-violet: #7c2cff;
+  --vf-violet-bright: #a445ff;
+  --vf-violet-deep: #3f0d8a;
+  --vf-blue: #168bff;
+  --vf-cyan: #20c7ff;
+  --vf-gold: #ff9d1c;
+  --vf-gold-bright: #ffd166;
+  --vf-gold-shadow: #8a4a00;
+
+  --vf-text: #f5f7ff;
+  --vf-text-secondary: #aeb5c8;
+  --vf-text-muted: #70788d;
+
+  --vf-success: #23d18b;
+  --vf-warning: #f5b942;
+  --vf-danger: #ff5a6b;
+
+  --vf-glow-violet: 0 0 60px -12px rgba(124, 44, 255, 0.5);
+  --vf-glow-blue: 0 0 60px -14px rgba(22, 139, 255, 0.45);
+  --vf-glow-gold: 0 0 50px -12px rgba(255, 157, 28, 0.45);
+
+  --vf-radius: 1rem;
+  --vf-duration-fast: 200ms;
+  --vf-duration: 400ms;
+  --vf-duration-slow: 900ms;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* NOTE: `overflow-x: hidden` on html/body was tried here as a blanket fix for decorative-element
+   bleed and reverted — combined with the `height: 100%` above, it caps the document's scrollable
+   area to exactly one viewport and silently clips every section below the fold (verified via a
+   real regression during mobile validation: page content existed in the DOM at the correct
+   position but became permanently unreachable). The actual bleed source (a results-page watermark
+   image) is now contained locally at its own element instead — see AnalysisResult.tsx. */
+
+body {
+  @apply bg-void-950 font-body antialiased;
+  color: var(--vf-text-secondary);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 15% -10%, rgba(124, 44, 255, 0.2), transparent),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(22, 139, 255, 0.13), transparent),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 157, 28, 0.05), transparent),
+    linear-gradient(rgba(245, 247, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 247, 255, 0.03) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    auto,
+    72px 72px,
+    72px 72px;
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
+  color: var(--vf-text);
+}
+
+::selection {
+  background: rgba(124, 44, 255, 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid theme("colors.signal.400");
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Glass panel used for primary content surfaces — a translucent, bordered, blurred layer over the
+   ambient background. `.panel-glow` adds a violet ambient shadow for the single "headline" surface
+   on a given screen; not every panel gets one, or the glow stops meaning anything. */
+.panel {
+  @apply rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm;
+}
+
+.panel-glow {
+  box-shadow: var(--vf-glow-violet);
+}
+
+.text-display {
+  @apply font-display font-semibold tracking-tight;
+  color: var(--vf-text);
+}
+
+/* Forged metallic border: a thin gradient hairline evoking cut metal, used sparingly on the
+   single highest-value surface per screen (e.g. the readiness reactor), never on every card. */
+.border-forged {
+  border-image: linear-gradient(120deg, var(--vf-gold-shadow), var(--vf-gold-bright) 45%, var(--vf-gold-shadow)) 1;
+}
+
+/* Button energy sweep: a diagonal light band that travels across the CTA on hover — supports the
+   "activating a system" feeling without being a constant, distracting animation (only runs on
+   hover/focus, not at rest). */
+.btn-energy {
+  position: relative;
+  overflow: hidden;
+  background-size: 200% 100%;
+}
+
+.btn-energy::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgba(245, 247, 255, 0.35) 45%, transparent 60%);
+  background-size: 250% 100%;
+  background-position: -150% 0;
+  opacity: 0;
+  transition: opacity var(--vf-duration-fast) ease;
+}
+
+.btn-energy:hover::after,
+.btn-energy:focus-visible::after {
+  opacity: 1;
+  animation: sweep 900ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

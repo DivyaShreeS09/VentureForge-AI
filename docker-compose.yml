@@ -1,0 +1,20 @@
+# OPTIONAL local Postgres for development — only needed if you don't already have PostgreSQL
+# installed natively (see README.md for the native Windows/Linux/macOS path, which needs no
+# Docker at all). Backend and frontend always run natively (uvicorn / npm run dev) either way.
+# Usage: docker compose up -d, then `cd backend && alembic upgrade head` (Alembic is the single
+# source of truth for the schema — there is no schema.sql to bootstrap from).
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ventureforge}
+      POSTGRES_USER: ${POSTGRES_USER:-ventureforge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
