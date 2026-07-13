@@ -154,3 +154,10 @@ pytest tests/integration
 - Gemini's live behavior depends on API availability; only mocked calls are tested in this
   environment.
 - Student 2 and Student 3 business modules are not yet implemented in this repository.
+
+## Before Pushing to Main
+
+1. `git pull --rebase origin main`
+2. Run the tests (see [Tests](#tests) above)
+3. Stage only your own changed files — never `git add .` blindly
+4. Do not replace this README or introduce another framework/stack alongside FastAPI/React
