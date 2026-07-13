@@ -137,6 +137,17 @@ export default {
           from: { transform: "rotate(0deg) translateX(var(--orbit-radius)) rotate(0deg)" },
           to: { transform: "rotate(360deg) translateX(var(--orbit-radius)) rotate(-360deg)" },
         },
+        "cta-breathe": {
+          "0%, 100%": { boxShadow: "0 0 30px -8px rgba(124,44,255,0.55)" },
+          "50%": { boxShadow: "0 0 46px -6px rgba(255,157,28,0.45)" },
+        },
+        "border-spin": {
+          to: { backgroundPosition: "200% center" },
+        },
+        "gradient-slow": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
       },
       animation: {
         "pulse-slow": "pulse-slow 3.5s ease-in-out infinite",
@@ -148,6 +159,9 @@ export default {
         float: "float 6s ease-in-out infinite",
         breathe: "breathe 4s ease-in-out infinite",
         orbit: "orbit linear infinite",
+        "cta-breathe": "cta-breathe 3.2s ease-in-out infinite",
+        "border-spin": "border-spin 3s linear infinite",
+        "gradient-slow": "gradient-slow 8s ease-in-out infinite",
       },
     },
   },

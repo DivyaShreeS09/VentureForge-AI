@@ -23,7 +23,7 @@ export function Wordmark({ size = "compact", className = "", animate = false }: 
         <img
           src={lockup}
           alt="VentureForge AI"
-          className={`w-full max-w-md drop-shadow-[0_0_50px_rgba(124,44,255,0.35)] sm:max-w-lg ${
+          className={`w-full max-w-[270px] drop-shadow-[0_0_50px_rgba(124,44,255,0.35)] sm:max-w-[300px] ${
             animate ? "animate-reveal" : ""
           }`}
         />

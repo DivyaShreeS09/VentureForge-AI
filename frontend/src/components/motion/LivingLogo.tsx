@@ -1,5 +1,5 @@
 import { useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 interface OrbitDot {
   radius: number;
@@ -10,40 +10,32 @@ interface OrbitDot {
 }
 
 const ORBIT_DOTS: OrbitDot[] = [
-  { radius: 150, duration: 14, size: 5, color: "#a445ff", delay: 0 },
-  { radius: 190, duration: 22, size: 4, color: "#20c7ff", delay: -6 },
-  { radius: 170, duration: 30, size: 6, color: "#ffd166", delay: -14 },
+  { radius: 150, duration: 18, size: 4, color: "#a445ff", delay: 0 },
+  { radius: 185, duration: 28, size: 3, color: "#ffd166", delay: -12 },
 ];
 
-/** Wraps the hero logo stack with the "living energy reactor" treatment: a slow float, a subtle
- * cursor-parallax lean, and a few orbiting particle dots (violet/blue, one gold) — never a
- * generic static image. Fully inert under `prefers-reduced-motion`: no float, no parallax, no
- * orbit, just the logo itself. */
+/** The single hero logo's decorative treatment: two faint rings rotating at different, very slow
+ * speeds behind the mark, and a soft autonomous orange core pulse — never anything that moves the
+ * logo itself. The logo's position is fixed; only the decoration around it animates, and none of
+ * it is driven by the cursor (no parallax, no tilt, no float). Fully inert under
+ * `prefers-reduced-motion`. */
 export function LivingLogo({ children }: { children: ReactNode }) {
   const prefersReduced = useReducedMotion();
-  const ref = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (prefersReduced) return;
-    function onMove(e: MouseEvent) {
-      const el = ref.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const cx = rect.left + rect.width / 2;
-      const cy = rect.top + rect.height / 2;
-      const dx = (e.clientX - cx) / (window.innerWidth / 2);
-      const dy = (e.clientY - cy) / (window.innerHeight / 2);
-      setTilt({ x: Math.max(-1, Math.min(1, dx)) * 10, y: Math.max(-1, Math.min(1, dy)) * 8 });
-    }
-    window.addEventListener("mousemove", onMove, { passive: true });
-    return () => window.removeEventListener("mousemove", onMove);
-  }, [prefersReduced]);
 
   return (
-    <div ref={ref} className="relative mx-auto flex justify-center">
+    <div className="relative mx-auto flex justify-center">
       {!prefersReduced && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden="true">
+          <div
+            className="absolute animate-pulse-slow rounded-full blur-3xl"
+            style={{
+              width: "70%",
+              height: "70%",
+              background: "radial-gradient(circle, rgba(255,157,28,0.16), transparent 65%)",
+            }}
+          />
+          <span className="absolute h-[85%] w-[85%] animate-spin-slow rounded-full border border-signal-400/15" />
+          <span className="absolute h-[70%] w-[70%] animate-spin-reverse-slow rounded-full border border-gold-400/10" />
           {ORBIT_DOTS.map((dot, i) => (
             <span
               key={i}
@@ -62,15 +54,7 @@ export function LivingLogo({ children }: { children: ReactNode }) {
           ))}
         </div>
       )}
-      <div
-        style={
-          prefersReduced
-            ? undefined
-            : { transform: `translate3d(${tilt.x}px, ${tilt.y}px, 0)`, transition: "transform 0.4s ease-out" }
-        }
-      >
-        <div className={prefersReduced ? "" : "animate-float"}>{children}</div>
-      </div>
+      {children}
     </div>
   );
 }

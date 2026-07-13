@@ -1,22 +1,19 @@
-"""Tests against the real trained artifact in ml/models/industry_classifier/v2/ (produced by
-`python -m ml.src.training.train_industry_classifier` on the real YC dataset — see ml/DATASETS.md).
-Skipped if the artifact hasn't been trained yet, rather than failing — training is a separate,
-explicit step (see ml/README.md).
+"""Tests against whatever trained artifact is present in ml/models/industry_classifier/v2/
+(produced by `python -m ml.src.training.train_industry_classifier` — see ml/README.md). Skipped if
+the artifact hasn't been trained yet, rather than failing — training is a separate, explicit step.
+
+The artifact may have been trained on the real YC dataset OR the generated bootstrap corpus (see
+ml/DATASETS.md) — whichever `ml/data/raw/industry_dataset.csv` was present at training time. A
+fresh checkout (including CI) never has that file, since it's gitignored, so these tests must
+validate predictions against the model's own recorded label set rather than assuming the real
+dataset's 7-class taxonomy — hardcoding that taxonomy here previously made
+`test_unknown_vocabulary_still_returns_a_prediction` fail on any machine that hadn't separately
+trained on the real dataset, since the bootstrap corpus uses a different 6-class taxonomy.
 """
 
 import pytest
 
 from app.ml import predictor
-
-REAL_TAXONOMY = {
-    "b2b",
-    "consumer",
-    "education",
-    "fintech",
-    "healthcare",
-    "industrials",
-    "real estate and construction",
-}
 
 
 @pytest.fixture(autouse=True)
@@ -25,11 +22,17 @@ def _skip_if_untrained():
         pytest.skip("industry_classifier artifact not trained — run ml/src/training first")
 
 
+def _known_taxonomy() -> set[str]:
+    metadata = predictor.model_metadata()
+    assert metadata is not None
+    return set(metadata["labels"])
+
+
 def test_predicts_reasonable_structure():
     result = predictor.predict_industry(
         "PayFlux", "A payments platform that lets small businesses settle cross-border payments in seconds."
     )
-    assert result["predicted_industry"] in REAL_TAXONOMY
+    assert result["predicted_industry"] in _known_taxonomy()
     assert 0.0 <= result["confidence"] <= 1.0
     assert len(result["alternatives"]) <= 3
     assert result["model_version"] == "v2"
@@ -55,7 +58,7 @@ def test_very_short_description():
 
 def test_unknown_vocabulary_still_returns_a_prediction():
     result = predictor.predict_industry("Zzyzx", "Xqlorp fnab worbled the trentization of blipspace.")
-    assert result["predicted_industry"] in REAL_TAXONOMY
+    assert result["predicted_industry"] in _known_taxonomy()
     assert 0.0 <= result["confidence"] <= 1.0
 
 

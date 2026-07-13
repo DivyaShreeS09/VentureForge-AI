@@ -62,7 +62,7 @@ export function MagneticButton({ children, className = "", onClick, ...rest }: P
       onMouseMove={handleMove}
       onMouseLeave={handleLeave}
       onClick={handleClick}
-      whileTap={prefersReduced ? undefined : { scale: 0.96 }}
+      whileTap={prefersReduced ? undefined : { scale: 0.98 }}
       style={prefersReduced ? undefined : { x: springX, y: springY }}
       className={`relative overflow-hidden ${className}`}
     >

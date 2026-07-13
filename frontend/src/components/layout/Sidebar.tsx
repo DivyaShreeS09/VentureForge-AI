@@ -8,9 +8,22 @@ const REPO_URL = "https://github.com/DivyaShreeS09/VentureForge-AI#readme";
 
 function NavIcon({ path }: { path: string }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-4.5 w-4.5" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-      <path d={path} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <span className="relative flex h-5 w-5 shrink-0 items-center justify-center">
+      <span
+        className="absolute inset-0 scale-50 rounded-full bg-signal-500/0 opacity-0 blur-md transition-all duration-300 group-hover:scale-150 group-hover:bg-signal-500/40 group-hover:opacity-100"
+        aria-hidden="true"
+      />
+      <svg
+        viewBox="0 0 24 24"
+        className="relative h-4.5 w-4.5 transition-transform duration-300 group-hover:rotate-12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        aria-hidden="true"
+      >
+        <path d={path} strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
   );
 }
 
@@ -22,11 +35,15 @@ const ICONS = {
 };
 
 const navItemClasses = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium transition ${
+  `group flex items-center gap-3.5 rounded-xl px-4 py-3 text-[15px] font-medium tracking-wide transition-all duration-300 hover:-translate-y-0.5 ${
     isActive
       ? "border border-signal-500/30 bg-signal-500/10 text-ink-primary shadow-glow"
-      : "text-ink-secondary hover:bg-white/5 hover:text-ink-primary"
+      : "text-ink-secondary hover:bg-signal-500/[0.07] hover:text-ink-primary"
   }`;
+
+const secondaryItemClasses =
+  "group flex items-center gap-3.5 rounded-xl px-4 py-3 text-left text-[15px] font-medium tracking-wide text-ink-secondary " +
+  "transition-all duration-300 hover:-translate-y-0.5 hover:bg-signal-500/[0.07] hover:text-ink-primary";
 
 interface Props {
   /** Mobile-only: whether the off-canvas drawer is open. Ignored at the `lg` breakpoint and
@@ -39,25 +56,31 @@ interface Props {
  * "About Model" and "Documentation" surface real information (live model metadata, the actual
  * repo README) rather than fabricated pages, per the "no invented pages/features" constraint.
  * Below `lg`, this becomes an off-canvas drawer (see AppShell) rather than a fixed 256px column,
- * which would otherwise eat most of a 390px viewport. */
+ * which would otherwise eat most of a 390px viewport.
+ *
+ * At `lg` and above this is `sticky` + `h-screen` rather than relying on flex stretch (`h-full`):
+ * the row container's height is driven by page content, which on some routes exceeds one
+ * viewport, so a percentage height on this item resolves against an indeterminate parent height
+ * and silently collapses to its own content size instead of the full viewport. `h-screen` sidesteps
+ * that entirely — it's a real diagnosed bug fix, not a style preference. */
 export function Sidebar({ mobileOpen = false, onNavigate }: Props) {
   const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-40 flex h-full w-64 shrink-0 flex-col gap-6 border-r border-white/10 bg-void-950/95 p-5 pt-16 backdrop-blur-sm transition-transform duration-300 lg:static lg:translate-x-0 lg:bg-void-950/60 lg:pt-5 ${
+      className={`fixed inset-y-0 left-0 z-40 flex h-full w-72 shrink-0 flex-col gap-8 border-r border-white/10 bg-void-950/95 p-6 pt-16 backdrop-blur-sm transition-transform duration-300 lg:sticky lg:top-0 lg:h-screen lg:w-[clamp(270px,20vw,292px)] lg:translate-x-0 lg:bg-void-950/60 lg:pt-6 ${
         mobileOpen ? "translate-x-0" : "-translate-x-full"
       }`}
       onClick={onNavigate}
     >
       <div>
         <Wordmark />
-        <p className="mt-2 pl-0.5 text-[11px] leading-snug text-ink-muted">
+        <p className="mt-2.5 pl-0.5 text-xs leading-relaxed tracking-wide text-ink-muted">
           Forge ideas. Build impact. Shape futures.
         </p>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1.5">
+      <nav className="flex flex-1 flex-col gap-2">
         <NavLink to="/" end className={navItemClasses}>
           <NavIcon path={ICONS.new} />
           New Analysis
@@ -66,20 +89,11 @@ export function Sidebar({ mobileOpen = false, onNavigate }: Props) {
           <NavIcon path={ICONS.history} />
           History
         </NavLink>
-        <button
-          type="button"
-          onClick={() => setAboutOpen(true)}
-          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-medium text-ink-secondary transition hover:bg-white/5 hover:text-ink-primary"
-        >
+        <button type="button" onClick={() => setAboutOpen(true)} className={secondaryItemClasses}>
           <NavIcon path={ICONS.info} />
           About Model
         </button>
-        <a
-          href={REPO_URL}
-          target="_blank"
-          rel="noreferrer"
-          className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-sm font-medium text-ink-secondary transition hover:bg-white/5 hover:text-ink-primary"
-        >
+        <a href={REPO_URL} target="_blank" rel="noreferrer" className={secondaryItemClasses}>
           <NavIcon path={ICONS.docs} />
           Documentation
         </a>

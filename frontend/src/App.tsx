@@ -1,7 +1,6 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { AmbientBackground } from "./components/layout/AmbientBackground";
 import { AppShell } from "./components/layout/AppShell";
-import { CursorGlow } from "./components/motion/CursorGlow";
 import { SystemStatusGate } from "./components/status/SystemStatusOverlay";
 import { NewAnalysisProvider } from "./context/NewAnalysisContext";
 import { AnalysisResultPage } from "./pages/AnalysisResultPage";
@@ -15,7 +14,6 @@ function App() {
   return (
     <BrowserRouter>
       <AmbientBackground />
-      <CursorGlow />
       <SystemStatusGate>
         <NewAnalysisProvider>
           <AppShell>
