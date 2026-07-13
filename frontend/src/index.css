@@ -89,6 +89,26 @@ h3 {
   border-radius: 4px;
 }
 
+/* Every clickable control compresses slightly on press — relies on the `transition` utility
+   (already applied to virtually every button in this app) already including `transform` in its
+   property list, so this needs no per-component wiring. Skipped entirely under reduced-motion via
+   the global rule below, which zeroes all transition durations. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Interactive cards/panels lift slightly and their border softly brightens on hover — applied via
+   the `.hover-lift` class rather than globally, so decorative panels (e.g. the results watermark
+   container) don't pick up a hover affordance that implies they're clickable when they aren't. */
+.hover-lift {
+  transition: transform 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  border-color: rgba(124, 44, 255, 0.35);
+  box-shadow: 0 12px 40px -20px rgba(124, 44, 255, 0.45);
+}
+
 /* Glass panel used for primary content surfaces — a translucent, bordered, blurred layer over the
    ambient background. `.panel-glow` adds a violet ambient shadow for the single "headline" surface
    on a given screen; not every panel gets one, or the glow stops meaning anything. */

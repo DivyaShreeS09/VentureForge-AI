@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ForgeSequence } from "../components/forge/ForgeSequence";
-import { TopBar } from "../components/layout/TopBar";
 import { ErrorBanner } from "../components/status/StatusBanner";
 import { useAsync } from "../hooks/useAsync";
 import { analyzeStartup } from "../services/api";
@@ -32,10 +31,9 @@ export function AnalysisStatusPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <TopBar />
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-6 py-12 sm:px-10">
-        <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">Forge Sequence</p>
-        <h1 className="mt-2 text-display text-3xl sm:text-4xl">Forging your venture blueprint</h1>
+        <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">04 · Forge Sequence</p>
+        <h1 className="mt-2 text-display text-3xl sm:text-4xl">VentureForge Core Activated</h1>
         <p className="mt-3 max-w-xl text-ink-secondary">
           Running the real orchestration pipeline — classification, readiness assessment, and Judge
           Agent synthesis. This is not a simulated timer.

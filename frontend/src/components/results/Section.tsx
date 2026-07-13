@@ -21,7 +21,7 @@ interface Props {
 
 export function Section({ id, title, source, children }: Props) {
   return (
-    <section aria-labelledby={`${id}-heading`} className="panel p-6 sm:p-8">
+    <section aria-labelledby={`${id}-heading`} className="panel hover-lift p-6 sm:p-8">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 id={`${id}-heading`} className="text-display text-xl text-ink-primary">
           {title}

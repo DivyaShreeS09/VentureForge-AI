@@ -5,6 +5,7 @@ import { CommandBar } from "../components/results/CommandBar";
 import { ErrorBanner, LoadingBanner } from "../components/status/StatusBanner";
 import { useAsync } from "../hooks/useAsync";
 import { analyzeStartup, getAnalysis, getStartup } from "../services/api";
+import { recordAnalysis } from "../services/localHistory";
 
 export function AnalysisResultPage() {
   const { analysisId } = useParams<{ analysisId: string }>();
@@ -22,7 +23,10 @@ export function AnalysisResultPage() {
     let cancelled = false;
     getStartup(data.startup_id)
       .then((startup) => {
-        if (!cancelled) setStartupName(startup.name);
+        if (!cancelled) {
+          setStartupName(startup.name);
+          if (data.status === "COMPLETED") recordAnalysis(startup.name, data);
+        }
       })
       .catch(() => {
         /* The command bar shows a graceful fallback label — this lookup is presentational only. */

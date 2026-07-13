@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { Wordmark } from "../brand/Wordmark";
 
 const STATUS_STYLES: Record<string, string> = {
   COMPLETED: "border-success-500/30 bg-success-500/10 text-success-400",
@@ -26,8 +25,6 @@ export function CommandBar({ startupName, status, modelVersion, timestamp, onRea
     <header className="sticky top-0 z-20 border-b border-white/5 bg-void-950/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-4 sm:px-10">
         <div className="flex flex-wrap items-center gap-4">
-          <Wordmark />
-          <span className="h-5 w-px bg-white/10" aria-hidden="true" />
           <div>
             <p className="text-sm font-medium text-ink-primary">{startupName ?? "Untitled venture"}</p>
             <p className="text-xs text-ink-muted">

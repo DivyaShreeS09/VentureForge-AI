@@ -3,7 +3,7 @@ import emblem from "../../assets/ventureforge-emblem.webp";
 const RADIUS = 92;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export type ForgeCoreState = "running" | "done" | "error";
+export type ForgeCoreState = "idle" | "running" | "done" | "error";
 
 interface Props {
   state: ForgeCoreState;
@@ -18,6 +18,7 @@ interface Props {
 function phaseColor(state: ForgeCoreState, progress: number): string {
   if (state === "error") return "#ff5a6b";
   if (state === "done") return "#ff9d1c";
+  if (state === "idle") return "#7c2cff";
   return progress < 0.5 ? "#7c2cff" : "#168bff";
 }
 
@@ -28,14 +29,16 @@ function phaseColor(state: ForgeCoreState, progress: number): string {
  */
 export function ForgeCore({ state, progress }: Props) {
   const clamped = Math.max(0, Math.min(1, progress));
-  const offset = CIRCUMFERENCE * (1 - clamped);
+  // Idle is a resting decorative state (e.g. the Home screen, where nothing is actually running) —
+  // it draws a full, static ring rather than any particular fake percentage.
+  const offset = state === "idle" ? 0 : CIRCUMFERENCE * (1 - clamped);
   const color = phaseColor(state, clamped);
   const isDone = state === "done";
 
   return (
     <div className="relative flex h-64 w-64 items-center justify-center sm:h-72 sm:w-72">
       <div
-        className="absolute inset-0 rounded-full blur-2xl transition-colors duration-700"
+        className={`absolute inset-0 rounded-full blur-2xl transition-colors duration-700 ${state === "idle" ? "animate-pulse-slow" : ""}`}
         style={{ backgroundColor: `${color}22` }}
         aria-hidden="true"
       />
@@ -46,11 +49,13 @@ export function ForgeCore({ state, progress }: Props) {
         viewBox="0 0 256 256"
         role="img"
         aria-label={
-          state === "error"
-            ? "Venture forge sequence failed"
-            : isDone
-              ? "Venture blueprint forged"
-              : `Venture forge sequence in progress, ${Math.round(clamped * 100)} percent complete`
+          state === "idle"
+            ? "VentureForge AI emblem"
+            : state === "error"
+              ? "Venture forge sequence failed"
+              : isDone
+                ? "Venture blueprint forged"
+                : `Venture forge sequence in progress, ${Math.round(clamped * 100)} percent complete`
         }
       >
         <circle
@@ -61,7 +66,7 @@ export function ForgeCore({ state, progress }: Props) {
           stroke="rgba(245,247,255,0.05)"
           strokeWidth="1"
           strokeDasharray="1 7"
-          className={state === "running" ? "origin-center animate-spin-slow" : ""}
+          className={state === "running" || state === "idle" ? "origin-center animate-spin-slow" : ""}
         />
         <circle
           cx="128"
@@ -71,7 +76,7 @@ export function ForgeCore({ state, progress }: Props) {
           stroke="rgba(245,247,255,0.04)"
           strokeWidth="1"
           strokeDasharray="3 5"
-          className={state === "running" ? "origin-center animate-spin-reverse-slow" : ""}
+          className={state === "running" || state === "idle" ? "origin-center animate-spin-reverse-slow" : ""}
         />
         <circle cx="128" cy="128" r={RADIUS} fill="none" stroke="rgba(245,247,255,0.06)" strokeWidth="9" />
         <circle
@@ -98,9 +103,11 @@ export function ForgeCore({ state, progress }: Props) {
           className={`w-28 transition-[filter] duration-700 sm:w-32 ${isDone ? "animate-ignite" : ""}`}
           style={{ filter: `drop-shadow(0 0 ${isDone ? 30 : 16}px ${color}${isDone ? "cc" : "80"})` }}
         />
-        <span className="mt-3 text-display text-xl text-ink-primary">{Math.round(clamped * 100)}%</span>
-        <span className="mt-0.5 text-xs uppercase tracking-[0.2em] text-ink-muted">
-          {state === "error" ? "Halted" : isDone ? "Forged" : "Forging"}
+        {state !== "idle" && (
+          <span className="mt-3 text-display text-xl text-ink-primary">{Math.round(clamped * 100)}%</span>
+        )}
+        <span className={`text-xs uppercase tracking-[0.2em] text-ink-muted ${state === "idle" ? "mt-3" : "mt-0.5"}`}>
+          {state === "idle" ? "VentureForge Core" : state === "error" ? "Halted" : isDone ? "Forged" : "Forging"}
         </span>
       </div>
     </div>
