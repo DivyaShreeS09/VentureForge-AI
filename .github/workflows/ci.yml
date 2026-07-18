@@ -29,8 +29,12 @@ jobs:
       - run: pip install -r backend/requirements.txt -r ml/requirements.txt
       # Trains on the generated bootstrap corpus (no internet/dataset download, ~seconds) so the
       # API/orchestrator tests exercise a real artifact end to end. Never a real production
-      # dataset — see ml/DATASETS.md.
+      # dataset — see ml/DATASETS.md. VF_SKIP_EMBEDDING_CANDIDATES=1 skips the sentence-transformer
+      # candidate comparison (TF-IDF is the production-selected model regardless), so CI doesn't
+      # download model weights from the internet.
       - run: python -m ml.src.training.train_industry_classifier
+        env:
+          VF_SKIP_EMBEDDING_CANDIDATES: "1"
       - working-directory: backend
         run: pytest
       - run: pytest tests/integration

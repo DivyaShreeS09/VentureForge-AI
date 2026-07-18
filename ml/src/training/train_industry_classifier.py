@@ -29,6 +29,7 @@ import hashlib
 import json
 import logging
 import math
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -78,6 +79,14 @@ GOLD_SET_PATH = REPO_ROOT / "ml" / "data" / "gold" / "industry_gold_set.csv"
 EMBEDDING_CACHE_DIR = REPO_ROOT / "ml" / "data" / "processed"
 
 EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
+
+# CI/smoke-training lightweight mode: skips downloading the sentence-transformer model and
+# evaluating the embedding candidates entirely. TF-IDF word+char + Logistic Regression is the
+# production-selected model regardless (see ml/DATASETS.md "Industry Classifier V2 Upgrade") — CI
+# only needs to validate the pipeline builds/trains/saves, not re-confirm the embedding comparison,
+# which requires downloading model weights from the internet. Full local/research training runs
+# still evaluate the embedding candidates by default (this defaults to off).
+SKIP_EMBEDDING_CANDIDATES = os.environ.get("VF_SKIP_EMBEDDING_CANDIDATES") == "1"
 
 # Confidence thresholds explored for the abstention layer (see ml/DATASETS.md "Abstention").
 ABSTENTION_THRESHOLDS = [0.4, 0.5, 0.6, 0.7]
@@ -363,10 +372,14 @@ def train() -> dict:
     # then sliced by fold/split index below — see ml/src/features/embedding_cache.py's docstring
     # for why reusing a frozen embedding matrix across CV folds is not leakage (no label touches
     # the embedding computation).
-    logger.info("Computing/loading sentence-transformer embeddings (%s)...", EMBEDDING_MODEL_NAME)
-    all_embeddings = get_or_compute_embeddings(all_texts, EMBEDDING_MODEL_NAME, EMBEDDING_CACHE_DIR)
-    emb_train = all_embeddings[train_idx]
-    emb_test = all_embeddings[test_idx]
+    if SKIP_EMBEDDING_CANDIDATES:
+        logger.info("VF_SKIP_EMBEDDING_CANDIDATES=1 — skipping sentence-transformer embeddings entirely.")
+        emb_train = emb_test = None
+    else:
+        logger.info("Computing/loading sentence-transformer embeddings (%s)...", EMBEDDING_MODEL_NAME)
+        all_embeddings = get_or_compute_embeddings(all_texts, EMBEDDING_MODEL_NAME, EMBEDDING_CACHE_DIR)
+        emb_train = all_embeddings[train_idx]
+        emb_test = all_embeddings[test_idx]
 
     can_finetune, memory_note = _check_memory_for_transformer_finetuning()
     logger.info(
@@ -404,7 +417,10 @@ def train() -> dict:
             cv_results[name] = {"cv_macro_f1_mean": float("nan"), "cv_macro_f1_std": float("nan")}
 
     y_train_arr = np.asarray(y_train)
-    embedding_candidate_names = list(_embedding_candidates().keys())
+    if SKIP_EMBEDDING_CANDIDATES:
+        embedding_candidate_names: list[str] = []
+    else:
+        embedding_candidate_names = list(_embedding_candidates().keys())
     for name in embedding_candidate_names:
         fold_scores = []
         try:
