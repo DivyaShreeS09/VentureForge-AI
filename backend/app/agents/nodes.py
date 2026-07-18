@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import logging
 
+from app.agents.market_agent import generate_market_analysis
+from app.agents.competitor_agent import generate_competitor_analysis
+from app.agents.customer_persona_agent import generate_customer_persona
+from app.agents.business_model_agent import generate_business_model
 from app.agents.state import OrchestratorState, TraceStep
 from app.ml.funding_readiness import assess_funding_readiness
 from app.ml.predictor import IndustryClassifierUnavailable, predict_industry
@@ -83,4 +87,34 @@ def evidence_confidence_check_node(state: OrchestratorState) -> dict:
     return {
         "evidence_check": {"low_confidence": low_confidence, "notes": notes},
         "trace": [_trace("evidence_confidence_check", "ok")],
+    }
+def market_analysis_node(state: OrchestratorState) -> dict:
+    analysis = generate_market_analysis(state.get("startup_description", ""))
+    return {
+        "market_analysis": analysis,
+        "trace": [_trace("market_analysis", "ok")],
+    }
+
+
+def competitor_analysis_node(state: OrchestratorState) -> dict:
+    analysis = generate_competitor_analysis(state.get("startup_description", ""))
+    return {
+        "competitor_analysis": analysis,
+        "trace": [_trace("competitor_analysis", "ok")],
+    }
+
+
+def customer_persona_node(state: OrchestratorState) -> dict:
+    persona = generate_customer_persona(state.get("startup_description", ""))
+    return {
+        "customer_persona": persona,
+        "trace": [_trace("customer_persona", "ok")],
+    }
+
+
+def business_model_node(state: OrchestratorState) -> dict:
+    model = generate_business_model(state.get("startup_description", ""))
+    return {
+        "business_model": model,
+        "trace": [_trace("business_model", "ok")],
     }

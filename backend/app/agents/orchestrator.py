@@ -28,6 +28,10 @@ from app.agents.nodes import (
     funding_readiness_node,
     industry_classification_node,
     input_validation_node,
+    market_analysis_node,
+    competitor_analysis_node,
+    customer_persona_node,
+    business_model_node,
 )
 from app.agents.state import OrchestratorState
 from app.ai.base import LLMUnavailable
@@ -140,6 +144,10 @@ def build_graph(persist_fn: PersistFn | None = None):
     graph.add_node("invalid_input", _invalid_input_node)
     graph.add_node("industry_classification", industry_classification_node)
     graph.add_node("funding_readiness", funding_readiness_node)
+    graph.add_node("market_analysis", market_analysis_node)
+    graph.add_node("competitor_analysis", competitor_analysis_node)
+    graph.add_node("customer_persona", customer_persona_node)
+    graph.add_node("business_model", business_model_node)
     graph.add_node("evidence_confidence_check", evidence_confidence_check_node)
     graph.add_node("judge", _judge_node)
     graph.add_node("persistence", _make_persistence_node(persist_fn))
@@ -154,6 +162,11 @@ def build_graph(persist_fn: PersistFn | None = None):
     graph.add_edge("invalid_input", "persistence")
     graph.add_edge("industry_classification", "funding_readiness")
     graph.add_edge("funding_readiness", "evidence_confidence_check")
+    graph.add_edge("funding_readiness", "market_analysis")
+    graph.add_edge("market_analysis", "competitor_analysis")
+    graph.add_edge("competitor_analysis", "customer_persona")
+    graph.add_edge("customer_persona", "business_model")
+    graph.add_edge("business_model", "evidence_confidence_check")
     graph.add_edge("evidence_confidence_check", "judge")
     graph.add_edge("judge", "persistence")
     graph.add_edge("persistence", "final_response")

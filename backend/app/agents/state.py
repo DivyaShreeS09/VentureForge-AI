@@ -22,6 +22,10 @@ class OrchestratorState(TypedDict, total=False):
     validation: dict[str, Any]
     industry_prediction: dict[str, Any] | None
     funding_assessment: dict[str, Any] | None
+    market_analysis: dict[str, Any] | None
+    competitor_analysis: dict[str, Any] | None
+    customer_persona: dict[str, Any] | None
+    business_model: dict[str, Any] | None
     evidence_check: dict[str, Any]
     judge_summary: dict[str, Any] | None
 
