@@ -1,4 +1,13 @@
-import type { Analysis, FundingAnswers, ModelStatus, Startup, SystemStatus } from "../types/api";
+import type {
+  Analysis,
+  CompanyMetrics,
+  FundingAnswers,
+  MarketEvidence,
+  ModelStatus,
+  RevenueAssumptions,
+  Startup,
+  SystemStatus,
+} from "../types/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
 
@@ -42,6 +51,9 @@ export function createStartup(payload: {
   name: string;
   description: string;
   funding_answers: FundingAnswers;
+  company_metrics?: CompanyMetrics;
+  revenue_assumptions?: RevenueAssumptions;
+  market_evidence?: MarketEvidence;
 }): Promise<Startup> {
   return request<Startup>("/startups", { method: "POST", body: JSON.stringify(payload) });
 }

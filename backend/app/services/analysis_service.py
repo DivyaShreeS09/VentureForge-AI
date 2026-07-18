@@ -20,6 +20,9 @@ def create_startup(db: Session, payload: StartupCreateRequest) -> Startup:
         name=payload.name,
         description=payload.description,
         funding_answers=payload.funding_answers.model_dump(),
+        company_metrics=payload.company_metrics.model_dump(),
+        revenue_assumptions=payload.revenue_assumptions.model_dump(),
+        market_evidence=payload.market_evidence.model_dump(),
         created_at=now,
         updated_at=now,
     )
@@ -53,6 +56,20 @@ def run_analysis_for_startup(db: Session, startup: Startup) -> Analysis:
         analysis.industry_model_version = industry.get("model_version") if industry else None
         analysis.funding_assessment = funding
         analysis.funding_rubric_version = funding.get("rubric_version") if funding else None
+
+        success_prediction = state.get("success_prediction")
+        analysis.success_prediction = success_prediction
+        analysis.success_model_version = success_prediction.get("model_version") if success_prediction else None
+
+        revenue_estimate = state.get("revenue_estimate")
+        analysis.revenue_estimate = revenue_estimate
+        analysis.revenue_engine_version = revenue_estimate.get("engine_version") if revenue_estimate else None
+
+        analysis.market_intelligence = state.get("market_intelligence")
+        analysis.competitor_analysis = state.get("competitor_analysis")
+        analysis.customer_personas = state.get("customer_personas")
+        analysis.business_model = state.get("business_model")
+
         analysis.judge_summary = state.get("judge_summary")
         analysis.workflow_trace = state.get("trace")
         analysis.error_message = state.get("error")
@@ -65,6 +82,9 @@ def run_analysis_for_startup(db: Session, startup: Startup) -> Analysis:
         startup_description=startup.description,
         funding_answers=startup.funding_answers,
         persist_fn=persist,
+        company_metrics=startup.company_metrics,
+        revenue_assumptions=startup.revenue_assumptions,
+        market_evidence=startup.market_evidence,
     )
     db.refresh(analysis)
     return analysis

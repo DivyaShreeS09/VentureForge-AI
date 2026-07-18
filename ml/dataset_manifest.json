@@ -54,6 +54,72 @@
       "task": "funding_readiness",
       "status": "rejected",
       "notes": "No supervised funding-readiness dataset with a defensible target, sufficient observations, form-available features, and leakage-free labeling was identified. See ml/DATASETS.md. Funding readiness is implemented as a transparent deterministic rubric instead (see backend/app/ml/funding_readiness.py)."
+    },
+    {
+      "name": "crunchbase-startup-success-outcomes",
+      "source": "kaggle",
+      "kaggle_id": "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase",
+      "path": "ml/data/raw/startup_success_raw.csv",
+      "task": "success_prediction",
+      "status": "approved",
+      "license": "Community Data License Agreement - Sharing 1.0 (acceptable)",
+      "notes": "66,368 real Crunchbase-derived company records; 13,334 rows have a resolved historical outcome (acquired 5,549 + ipo 1,547 = success; closed 6,238 = failure) and are used for training. The 53,034 'operating' rows are excluded as unresolved, not labeled as failure. Transform script: ml/src/preprocessing/prepare_success_dataset.py. Full schema profile, model comparison, and metrics in ml/DATASETS.md."
+    },
+    {
+      "name": "startup-success-prediction-alternative",
+      "source": "kaggle",
+      "kaggle_id": "manishkc06/startup-success-prediction",
+      "path": null,
+      "task": "success_prediction",
+      "status": "inspected_not_selected",
+      "license": "CC0-1.0",
+      "notes": "923 rows, real Crunchbase-derived data, same acquired/closed binary target shape as the approved dataset above. Not rejected on quality grounds — simply superseded by the 66,368-row Crunchbase dataset (14x more resolved-outcome rows) for the same task. See ml/DATASETS.md."
+    },
+    {
+      "name": "global-startup-success-dataset-synthetic",
+      "source": "kaggle",
+      "kaggle_id": "hamnakaleemds/global-startup-success-dataset",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "5,000 rows, Apache-2.0, but no data-provenance statement and an undefined 'Success Score 1-10 based on growth' field that reads as an arbitrary generated label rather than an observed outcome. See ml/DATASETS.md."
+    },
+    {
+      "name": "startup-funding-outcome-simulated",
+      "source": "kaggle",
+      "kaggle_id": "dhrubangtalukdar/startup-funding-and-outcome-dataset",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "100,000 rows, Apache-2.0, but the publisher's own metadata states userSpecifiedSources='Synthetic' ('Simulated startup data'). Also inspected and rejected for revenue_estimation for the same reason. See ml/DATASETS.md."
+    },
+    {
+      "name": "startup-growth-funding-trends-synthetic",
+      "source": "kaggle",
+      "kaggle_id": "samayashar/startup-growth-and-funding-trends",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "CC0-1.0, but the publisher's own metadata states the dataset is 'synthetically generated based on real-world startup funding and growth patterns' — not real observed data. Also inspected and rejected for revenue_estimation for the same reason. See ml/DATASETS.md."
+    },
+    {
+      "name": "financial-metrics-50-startups-toy",
+      "source": "kaggle",
+      "kaggle_id": "ara001/financial-metrics-of-startup-companies",
+      "path": null,
+      "task": "revenue_estimation",
+      "status": "rejected",
+      "notes": "The well-known '50 Startups' classroom regression dataset (50 rows). Extremely tiny toy dataset; R&D/Administration/Marketing spend -> Profit has no relationship to this system's founder-pitch input fields. See ml/DATASETS.md.",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "revenue-scenario-calculator",
+      "source": "deterministic",
+      "kaggle_id": null,
+      "path": "backend/app/ml/revenue_scenario.py",
+      "task": "revenue_estimation",
+      "status": "approved_as_deterministic_engine",
+      "notes": "No real, licensed, non-synthetic dataset tying startup revenue to founder-pitch-available features was found (see the rejected entries above, task=revenue_estimation, plus the two success_prediction synthetic rejections which were also evaluated for this task). Implemented as a transparent, versioned, user-assumption-driven scenario calculator instead of a trained model, mirroring the precedent set by backend/app/ml/funding_readiness.py. See ml/DATASETS.md 'Revenue Estimation — Dataset Decision'."
     }
   ]
 }

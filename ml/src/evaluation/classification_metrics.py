@@ -58,6 +58,62 @@ def evaluate_classification(
     return metrics
 
 
+def top2_accuracy(y_true: list[str], y_proba: np.ndarray, classes: list[str]) -> float:
+    """Fraction of examples where the true label is among the top-2 highest-probability classes.
+
+    A softer, still-honest notion of "the model was in the right neighborhood" — useful for a
+    7-class, imbalanced problem where forcing a single top-1 answer discards real partial signal
+    (e.g. b2b vs. fintech ambiguity where the model correctly narrows to 2 plausible classes).
+    """
+    class_index = {c: i for i, c in enumerate(classes)}
+    proba = np.asarray(y_proba)
+    top2_idx = np.argsort(proba, axis=1)[:, -2:]
+    hits = 0
+    for i, true_label in enumerate(y_true):
+        true_idx = class_index.get(true_label)
+        if true_idx is not None and true_idx in top2_idx[i]:
+            hits += 1
+    return hits / len(y_true) if y_true else 0.0
+
+
+def abstention_report(
+    y_true: list[str],
+    y_pred: list[str],
+    y_proba: np.ndarray,
+    thresholds: list[float],
+) -> list[dict]:
+    """For each confidence threshold, report coverage (share of predictions whose top-1
+    probability clears the threshold) and accuracy computed only on that covered subset.
+
+    This is the standard coverage/accuracy trade-off table for a confidence-threshold abstention
+    layer: a higher threshold keeps fewer predictions (lower coverage) but the ones it does keep
+    should be more reliable (higher accuracy-on-covered). Reported for every threshold requested,
+    not just the eventually-recommended one, so the trade-off is visible.
+    """
+    top1_confidence = np.asarray(y_proba).max(axis=1)
+    y_true_arr = np.asarray(y_true)
+    y_pred_arr = np.asarray(y_pred)
+    n = len(y_true_arr)
+
+    report = []
+    for threshold in thresholds:
+        keep = top1_confidence >= threshold
+        coverage = float(keep.sum()) / n if n else 0.0
+        if keep.sum() > 0:
+            accuracy_on_covered = float((y_true_arr[keep] == y_pred_arr[keep]).mean())
+        else:
+            accuracy_on_covered = None
+        report.append(
+            {
+                "threshold": threshold,
+                "coverage": coverage,
+                "n_covered": int(keep.sum()),
+                "accuracy_on_covered": accuracy_on_covered,
+            }
+        )
+    return report
+
+
 def check_no_leakage(train_texts: list[str], test_texts: list[str]) -> list[str]:
     """Return any text that appears in both the train and test splits (exact-match leakage)."""
     overlap = set(train_texts) & set(test_texts)

@@ -203,6 +203,203 @@ export function AnalysisResult({ analysis }: { analysis: Analysis }) {
         </Section>
       )}
 
+      {/* Startup Success Prediction */}
+      <Section id="success-prediction" title="Startup Success Prediction" source="model">
+        {analysis.success_prediction ? (
+          <div>
+            <p className="text-lg font-medium capitalize text-ink-primary">
+              {analysis.success_prediction.predicted_label}{" "}
+              <span className="text-sm font-normal text-ink-muted">
+                ({(analysis.success_prediction.success_probability * 100).toFixed(0)}% probability, model{" "}
+                {analysis.success_prediction.model_version})
+              </span>
+            </p>
+            {analysis.success_prediction.is_uncertain && (
+              <p className="mt-3 rounded-lg border border-warning-500/30 bg-warning-500/10 p-3 text-sm text-warning-400">
+                Uncertain estimate — treat as a hypothesis, not a settled fact.
+                {analysis.success_prediction.uncertainty_reasons.map((reason) => (
+                  <span key={reason} className="mt-1 block text-xs text-warning-400/80">
+                    {reason}
+                  </span>
+                ))}
+              </p>
+            )}
+            {analysis.success_prediction.missing_features.length > 0 && (
+              <p className="mt-2 text-xs text-ink-muted">
+                Imputed (not supplied): {analysis.success_prediction.missing_features.join(", ")}
+              </p>
+            )}
+            {analysis.success_prediction.top_global_features && analysis.success_prediction.top_global_features.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                  Most influential features (model-wide)
+                </h3>
+                <ul className="mt-1 flex flex-wrap gap-2">
+                  {analysis.success_prediction.top_global_features.map((f) => (
+                    <li key={f} className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 text-xs text-ink-secondary">
+                      {f.replace(/_/g, " ")}
+                    </li>
+                  ))}
+                </ul>
+                {analysis.success_prediction.explanation_note && (
+                  <p className="mt-1.5 text-[11px] text-ink-muted">{analysis.success_prediction.explanation_note}</p>
+                )}
+              </div>
+            )}
+            <p className="mt-3 text-xs italic text-ink-muted">{analysis.success_prediction.disclaimer}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-ink-muted">
+            Success prediction model unavailable for this run — no artifact was loaded on the server.
+          </p>
+        )}
+      </Section>
+
+      {/* Revenue Estimate */}
+      <Section id="revenue-estimate" title="Revenue Estimate" source="deterministic">
+        {analysis.revenue_estimate?.available && analysis.revenue_estimate.scenarios ? (
+          <div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {(["conservative", "base", "optimistic"] as const).map((key) => {
+                const s = analysis.revenue_estimate!.scenarios![key];
+                return (
+                  <div key={key} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted capitalize">{key}</p>
+                    <p className="mt-1.5 text-lg text-display text-ink-primary">
+                      ${s.annual_revenue_usd.toLocaleString()}
+                    </p>
+                    <p className="text-xs text-ink-muted">annual revenue (12mo)</p>
+                    <p className="mt-1 text-xs text-ink-secondary">
+                      ${s.annual_gross_profit_usd.toLocaleString()} gross profit
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            {analysis.revenue_estimate.missing_assumptions.length > 0 && (
+              <p className="mt-3 text-xs text-warning-400">
+                Defaulted assumptions: {analysis.revenue_estimate.missing_assumptions.join(", ")}
+              </p>
+            )}
+            <p className="mt-3 text-xs italic text-ink-muted">{analysis.revenue_estimate.disclaimer}</p>
+          </div>
+        ) : (
+          <p className="text-sm text-ink-muted">
+            No revenue range shown — {analysis.revenue_estimate?.disclaimer ??
+              "revenue assumptions were not submitted."}
+          </p>
+        )}
+      </Section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Market Intelligence */}
+        {analysis.market_intelligence && (
+          <Section id="market-intelligence" title="Market Intelligence" source="deterministic">
+            <p className="text-sm text-ink-secondary">{analysis.market_intelligence.market_summary}</p>
+            {analysis.market_intelligence.opportunity_drivers.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-success-400">Opportunity drivers</h3>
+                <ul className="mt-1 list-inside list-disc text-sm text-ink-secondary">
+                  {analysis.market_intelligence.opportunity_drivers.map((d) => (
+                    <li key={d}>{d}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {analysis.market_intelligence.constraints.length > 0 && (
+              <div className="mt-3">
+                <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-danger-400">Constraints</h3>
+                <ul className="mt-1 list-inside list-disc text-sm text-ink-secondary">
+                  {analysis.market_intelligence.constraints.map((c) => (
+                    <li key={c}>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {analysis.market_intelligence.evidence_gaps.length > 0 && (
+              <p className="mt-3 text-xs text-warning-400">
+                Evidence gaps: {analysis.market_intelligence.evidence_gaps.join(", ")}
+              </p>
+            )}
+            <p className="mt-3 text-xs italic text-ink-muted">{analysis.market_intelligence.disclaimer}</p>
+          </Section>
+        )}
+
+        {/* Competitor Analysis */}
+        {analysis.competitor_analysis && (
+          <Section id="competitor-analysis" title="Competitor Analysis" source="deterministic">
+            <ul className="space-y-2">
+              {analysis.competitor_analysis.entries.map((entry) => (
+                <li key={entry.competitor_or_alternative} className="rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                  <p className="text-sm font-medium text-ink-primary">{entry.competitor_or_alternative}</p>
+                  <p className="text-xs text-ink-muted">{entry.category}</p>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs italic text-ink-muted">{analysis.competitor_analysis.disclaimer}</p>
+          </Section>
+        )}
+      </div>
+
+      {/* Customer Personas */}
+      {analysis.customer_personas && (
+        <Section id="customer-personas" title="Customer Personas" source="deterministic">
+          {analysis.customer_personas.personas.map((persona) => (
+            <div key={persona.persona_name} className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+              <p className="text-sm font-medium text-ink-primary">{persona.persona_name}</p>
+              <dl className="mt-2 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                <div>
+                  <dt className="text-xs text-ink-muted">Role/context</dt>
+                  <dd className="text-ink-secondary">{persona.role_or_context}</dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-ink-muted">Goal</dt>
+                  <dd className="text-ink-secondary">{persona.goal}</dd>
+                </div>
+              </dl>
+              {persona.assumptions_requiring_validation.length > 0 && (
+                <p className="mt-2 text-xs text-warning-400">
+                  Requires validation: {persona.assumptions_requiring_validation.join(", ")}
+                </p>
+              )}
+            </div>
+          ))}
+          <p className="mt-3 text-xs italic text-ink-muted">{analysis.customer_personas.disclaimer}</p>
+        </Section>
+      )}
+
+      {/* Business Model */}
+      {analysis.business_model && (
+        <Section id="business-model" title="Business Model" source="deterministic">
+          <dl className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {(
+              [
+                ["Value proposition", analysis.business_model.value_proposition],
+                ["Customer segments", analysis.business_model.customer_segments],
+                ["Revenue streams", analysis.business_model.revenue_streams],
+                ["Unit economics readiness", analysis.business_model.unit_economics_readiness],
+              ] as const
+            ).map(([label, val]) => (
+              <div key={label}>
+                <dt className="text-xs uppercase tracking-[0.1em] text-ink-muted">{label}</dt>
+                <dd className="mt-1 text-sm text-ink-secondary">{val}</dd>
+              </div>
+            ))}
+          </dl>
+          {analysis.business_model.recommended_experiments.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-xs font-semibold uppercase tracking-[0.1em] text-signal-400">Recommended experiments</h3>
+              <ul className="mt-1 list-inside list-disc text-sm text-ink-secondary">
+                {analysis.business_model.recommended_experiments.map((e) => (
+                  <li key={e}>{e}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <p className="mt-3 text-xs italic text-ink-muted">{analysis.business_model.disclaimer}</p>
+        </Section>
+      )}
+
       {/* Explainability */}
       {industry_prediction?.explanation.available && (
         <Section id="explainability" title="Explainability" source="model">
@@ -271,6 +468,63 @@ export function AnalysisResult({ analysis }: { analysis: Analysis }) {
               patterns (character n-gram fragments), not whole words.
             </p>
           </details>
+        </Section>
+      )}
+
+      {/* Model Evidence — compact, honest summary of what each model knows, doesn't know, and how confident it is */}
+      {(industry_prediction || analysis.success_prediction) && (
+        <Section id="model-evidence" title="Model Evidence" source="model">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {industry_prediction && (
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                  Industry classifier · {industry_prediction.model_version}
+                </p>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  Primary: <span className="capitalize text-ink-primary">{industry_prediction.primary_industry ?? industry_prediction.predicted_industry}</span>
+                  {industry_prediction.primary_confidence != null && (
+                    <span className="text-ink-muted"> ({(industry_prediction.primary_confidence * 100).toFixed(0)}%)</span>
+                  )}
+                </p>
+                {industry_prediction.secondary_industry && (
+                  <p className="text-sm text-ink-secondary">
+                    Secondary: <span className="capitalize text-ink-primary">{industry_prediction.secondary_industry}</span>
+                    {industry_prediction.secondary_confidence != null && (
+                      <span className="text-ink-muted"> ({(industry_prediction.secondary_confidence * 100).toFixed(0)}%)</span>
+                    )}
+                  </p>
+                )}
+                {industry_prediction.is_low_confidence && (
+                  <p className="mt-2 rounded-lg border border-warning-500/30 bg-warning-500/10 p-2 text-xs text-warning-400">
+                    Below the abstention threshold ({((industry_prediction.abstention_threshold ?? 0) * 100).toFixed(0)}%)
+                    {industry_prediction.abstention_reason ? ` — ${industry_prediction.abstention_reason}` : ""}. Treat this
+                    prediction as insufficiently confident rather than a settled classification.
+                  </p>
+                )}
+              </div>
+            )}
+            {analysis.success_prediction && (
+              <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">
+                  Success predictor · {analysis.success_prediction.model_version}
+                </p>
+                <p className="mt-2 text-sm text-ink-secondary">
+                  Calibration: <span className="text-ink-primary">{analysis.success_prediction.calibration_method ?? "unknown"}</span>
+                  {" · "}Dataset: <span className="text-ink-primary">{analysis.success_prediction.dataset_version}</span>
+                </p>
+                {analysis.success_prediction.recommended_threshold_info && (
+                  <p className="mt-2 text-xs text-ink-muted">
+                    Operating threshold {analysis.success_prediction.recommended_threshold_info.threshold}:{" "}
+                    {analysis.success_prediction.recommended_threshold_info.justification}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="mt-3 text-xs italic text-ink-muted">
+            Evidence is reported to show what each model actually knows and how it was validated — not to imply certainty
+            beyond what the underlying data supports.
+          </p>
         </Section>
       )}
 

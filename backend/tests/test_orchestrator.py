@@ -13,10 +13,18 @@ def test_valid_input_completes_successfully():
     assert result["funding_assessment"] is not None
     assert result["judge_summary"] is not None
     node_order = [t["node"] for t in result["trace"]]
+    # Student 2 nodes (success_prediction ... business_model) are additively wired between
+    # funding_readiness and evidence_confidence_check — see app.agents.orchestrator.build_graph.
     assert node_order == [
         "input_validation",
         "industry_classification",
         "funding_readiness",
+        "success_prediction",
+        "revenue_estimate",
+        "market_analysis",
+        "competitor_analysis",
+        "customer_persona",
+        "business_model",
         "evidence_confidence_check",
         "judge",
         "persistence",

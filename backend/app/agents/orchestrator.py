@@ -24,10 +24,16 @@ from langgraph.graph import END, StateGraph
 
 from app.agents import judge as judge_agent
 from app.agents.nodes import (
+    business_model_node,
+    competitor_analysis_node,
+    customer_persona_node,
     evidence_confidence_check_node,
     funding_readiness_node,
     industry_classification_node,
     input_validation_node,
+    market_analysis_node,
+    revenue_estimate_node,
+    success_prediction_node,
 )
 from app.agents.state import OrchestratorState
 from app.ai.base import LLMUnavailable
@@ -85,6 +91,12 @@ def _judge_node(state: OrchestratorState) -> dict:
             industry_prediction,
             funding_assessment,
             state.get("evidence_check") or {},
+            success_prediction=state.get("success_prediction"),
+            revenue_estimate=state.get("revenue_estimate"),
+            market_intelligence=state.get("market_intelligence"),
+            competitor_analysis=state.get("competitor_analysis"),
+            customer_personas=state.get("customer_personas"),
+            business_model=state.get("business_model"),
         )
         summary["llm_narrative"] = _try_llm_narrative(industry_prediction, funding_assessment, summary, state)
         return {"judge_summary": summary, "trace": [{"node": "judge", "status": "ok", "detail": None}]}
@@ -140,6 +152,15 @@ def build_graph(persist_fn: PersistFn | None = None):
     graph.add_node("invalid_input", _invalid_input_node)
     graph.add_node("industry_classification", industry_classification_node)
     graph.add_node("funding_readiness", funding_readiness_node)
+    # Node ids below are deliberately distinct from their OrchestratorState output keys (e.g.
+    # "predict_success" vs the `success_prediction` state field) — LangGraph rejects a node id
+    # that collides with an existing state key.
+    graph.add_node("predict_success", success_prediction_node)
+    graph.add_node("estimate_revenue", revenue_estimate_node)
+    graph.add_node("analyze_market", market_analysis_node)
+    graph.add_node("analyze_competitors", competitor_analysis_node)
+    graph.add_node("build_customer_persona", customer_persona_node)
+    graph.add_node("evaluate_business_model", business_model_node)
     graph.add_node("evidence_confidence_check", evidence_confidence_check_node)
     graph.add_node("judge", _judge_node)
     graph.add_node("persistence", _make_persistence_node(persist_fn))
@@ -153,7 +174,13 @@ def build_graph(persist_fn: PersistFn | None = None):
     )
     graph.add_edge("invalid_input", "persistence")
     graph.add_edge("industry_classification", "funding_readiness")
-    graph.add_edge("funding_readiness", "evidence_confidence_check")
+    graph.add_edge("funding_readiness", "predict_success")
+    graph.add_edge("predict_success", "estimate_revenue")
+    graph.add_edge("estimate_revenue", "analyze_market")
+    graph.add_edge("analyze_market", "analyze_competitors")
+    graph.add_edge("analyze_competitors", "build_customer_persona")
+    graph.add_edge("build_customer_persona", "evaluate_business_model")
+    graph.add_edge("evaluate_business_model", "evidence_confidence_check")
     graph.add_edge("evidence_confidence_check", "judge")
     graph.add_edge("judge", "persistence")
     graph.add_edge("persistence", "final_response")
@@ -167,6 +194,9 @@ def run_pipeline(
     startup_description: str,
     funding_answers: dict[str, int | None],
     persist_fn: PersistFn | None = None,
+    company_metrics: dict[str, Any] | None = None,
+    revenue_assumptions: dict[str, Any] | None = None,
+    market_evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Run the full orchestration pipeline synchronously and return the final state."""
     compiled = build_graph(persist_fn)
@@ -174,6 +204,9 @@ def run_pipeline(
         "startup_name": startup_name,
         "startup_description": startup_description,
         "funding_answers": funding_answers,
+        "company_metrics": company_metrics or {},
+        "revenue_assumptions": revenue_assumptions or {},
+        "market_evidence": market_evidence or {},
         "status": "RUNNING",
         "error": None,
         "trace": [],

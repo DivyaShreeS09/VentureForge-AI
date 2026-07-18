@@ -57,7 +57,9 @@ describe("AnalysisResult", () => {
   it("renders industry, funding, and judge sections from real data", () => {
     render(<AnalysisResult analysis={analysis} />);
 
-    expect(screen.getByText("fintech")).toBeInTheDocument();
+    // "fintech" now appears twice by design: once in the primary Industry Intelligence card, and
+    // again in the new Model Evidence section's compact per-model summary.
+    expect(screen.getAllByText("fintech").length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/72% confidence/)).toBeInTheDocument();
     expect(screen.getByText("payments")).toBeInTheDocument();
 

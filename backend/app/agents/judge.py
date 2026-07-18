@@ -35,8 +35,21 @@ def synthesize(
     industry_prediction: dict | None,
     funding_assessment: dict,
     evidence_check: dict,
+    success_prediction: dict | None = None,
+    revenue_estimate: dict | None = None,
+    market_intelligence: dict | None = None,
+    competitor_analysis: dict | None = None,
+    customer_personas: dict | None = None,
+    business_model: dict | None = None,
 ) -> dict:
-    """Produce the final Judge summary. Raises ValueError if required fields are missing."""
+    """Produce the final Judge summary. Raises ValueError if required fields are missing.
+
+    The Student 2 arguments are optional and additive: each is independently attributed to its
+    source (trained ML, deterministic calculation, or user-submitted evidence) in
+    `source_attribution` and never averaged or blended with the industry/funding scores — a
+    success-prediction probability and a funding-readiness score measure different things and
+    combining them into one number would misrepresent both.
+    """
     if funding_assessment is None or "overall_score" not in funding_assessment:
         raise ValueError("funding_assessment is required and must include overall_score")
 
@@ -62,6 +75,48 @@ def synthesize(
 
     confidence_level = _confidence_level(industry_prediction, funding_assessment, evidence_check)
 
+    source_attribution: dict[str, str] = {
+        "funding_assessment": "deterministic rubric score from user-provided answers",
+        "strengths_weaknesses_next_actions": "generated from rubric breakdown via fixed templates",
+    }
+
+    if success_prediction is not None:
+        source_attribution["success_prediction"] = (
+            f"trained ML model ({success_prediction.get('model_pipeline', 'unknown')}, "
+            f"version {success_prediction.get('model_version', 'unknown')}) — historical pattern "
+            "estimate, not a guarantee"
+        )
+        if success_prediction.get("is_uncertain"):
+            weaknesses.append(
+                f"Success prediction is flagged uncertain ({success_prediction.get('success_probability')} "
+                "probability, near chance or built on incomplete features)."
+            )
+    if revenue_estimate is not None:
+        source_attribution["revenue_estimate"] = (
+            "deterministic scenario calculator from user-supplied assumptions — not a trained model"
+            if revenue_estimate.get("available")
+            else "unavailable — no revenue assumptions were submitted"
+        )
+    if market_intelligence is not None:
+        source_attribution["market_intelligence"] = (
+            "agent synthesis of user-submitted market evidence + deterministic funding-readiness rubric"
+        )
+        missing_evidence.extend(
+            f"Market: {gap}" for gap in market_intelligence.get("evidence_gaps", [])
+        )
+    if competitor_analysis is not None:
+        source_attribution["competitor_analysis"] = (
+            "user-submitted competitor names (unverified) or generic unverified categories — never a "
+            "verified company database"
+        )
+    if customer_personas is not None:
+        source_attribution["customer_personas"] = "agent synthesis of user-submitted evidence and inference"
+    if business_model is not None:
+        source_attribution["business_model"] = "agent synthesis of user-submitted evidence and deterministic rubric"
+        missing_evidence.extend(
+            f"Business model: {gap}" for gap in business_model.get("evidence_gaps", [])
+        )
+
     if industry_prediction is not None:
         industry_clause = (
             f"classified as '{industry_prediction['predicted_industry']}' "
@@ -76,6 +131,7 @@ def synthesize(
     else:
         industry_clause = "not classified — the industry model was unavailable for this run"
         industry_model_description = "unavailable for this run"
+    source_attribution["industry_prediction"] = industry_model_description
 
     readiness_level = funding_assessment["level"].replace("_", " ")
     overall_assessment = (
@@ -91,9 +147,5 @@ def synthesize(
         "missing_evidence": missing_evidence,
         "next_actions": next_actions,
         "confidence_level": confidence_level,
-        "source_attribution": {
-            "industry_prediction": industry_model_description,
-            "funding_assessment": "deterministic rubric score from user-provided answers",
-            "strengths_weaknesses_next_actions": "generated from rubric breakdown via fixed templates",
-        },
+        "source_attribution": source_attribution,
     }

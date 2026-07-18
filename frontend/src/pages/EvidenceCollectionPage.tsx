@@ -98,10 +98,25 @@ function StrengthRing({ percent }: { percent: number }) {
 
 export function EvidenceCollectionPage() {
   const navigate = useNavigate();
-  const { idea, fundingAnswers, updateFunding, buildDescription, reset } = useNewAnalysis();
+  const {
+    idea,
+    fundingAnswers,
+    updateFunding,
+    companyMetrics,
+    revenueAssumptions,
+    marketEvidence,
+    updateCompanyMetrics,
+    updateRevenueAssumptions,
+    updateMarketEvidence,
+    buildDescription,
+    reset,
+  } = useNewAnalysis();
   const [expanded, setExpanded] = useState<string | null>(DIMENSIONS[0].key);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [competitorsInput, setCompetitorsInput] = useState(
+    (marketEvidence.known_competitors ?? []).join(", "),
+  );
 
   const strengthPercent = useMemo(() => {
     const total = DIMENSIONS.reduce((sum, d) => sum + (fundingAnswers[d.key] ?? 0), 0);
@@ -122,6 +137,9 @@ export function EvidenceCollectionPage() {
         name: idea.name,
         description: buildDescription(),
         funding_answers: fundingAnswers,
+        company_metrics: companyMetrics,
+        revenue_assumptions: revenueAssumptions,
+        market_evidence: marketEvidence,
       });
       reset();
       navigate(`/startups/${startup.id}/status`);
@@ -224,6 +242,182 @@ export function EvidenceCollectionPage() {
           )}
         </div>
       </div>
+
+      <details className="panel mt-8 overflow-hidden">
+        <summary className="cursor-pointer select-none px-5 py-4 text-sm font-medium text-ink-primary">
+          Additional details (optional) — powers success prediction, revenue estimate, market
+          intelligence, competitor analysis, personas, and business model sections
+        </summary>
+        <div className="grid grid-cols-1 gap-6 border-t border-white/5 p-5 sm:grid-cols-3">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Company & funding</p>
+            <label className="block text-xs text-ink-secondary">
+              Total funding raised (USD)
+              <input
+                type="number"
+                min={0}
+                value={companyMetrics.total_funding_usd ?? ""}
+                onChange={(e) =>
+                  updateCompanyMetrics({ total_funding_usd: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Funding rounds so far
+              <input
+                type="number"
+                min={0}
+                value={companyMetrics.funding_rounds ?? ""}
+                onChange={(e) =>
+                  updateCompanyMetrics({ funding_rounds: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Year founded
+              <input
+                type="number"
+                min={1900}
+                max={2100}
+                value={companyMetrics.founded_year ?? ""}
+                onChange={(e) =>
+                  updateCompanyMetrics({ founded_year: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Country code (e.g. usa)
+              <input
+                type="text"
+                value={companyMetrics.country_code ?? ""}
+                onChange={(e) => updateCompanyMetrics({ country_code: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Revenue assumptions</p>
+            <label className="block text-xs text-ink-secondary">
+              Price per customer / month (USD)
+              <input
+                type="number"
+                min={0}
+                value={revenueAssumptions.price_per_customer_usd ?? ""}
+                onChange={(e) =>
+                  updateRevenueAssumptions({
+                    price_per_customer_usd: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Initial customer count
+              <input
+                type="number"
+                min={0}
+                value={revenueAssumptions.initial_customers ?? ""}
+                onChange={(e) =>
+                  updateRevenueAssumptions({ initial_customers: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Expected monthly growth (%)
+              <input
+                type="number"
+                value={revenueAssumptions.monthly_growth_rate_pct ?? ""}
+                onChange={(e) =>
+                  updateRevenueAssumptions({
+                    monthly_growth_rate_pct: e.target.value === "" ? null : Number(e.target.value),
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Gross margin (%)
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={revenueAssumptions.gross_margin_pct ?? ""}
+                onChange={(e) =>
+                  updateRevenueAssumptions({ gross_margin_pct: e.target.value === "" ? null : Number(e.target.value) })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+          </div>
+
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-ink-muted">Market context</p>
+            <label className="block text-xs text-ink-secondary">
+              Target market
+              <input
+                type="text"
+                value={marketEvidence.target_market ?? ""}
+                onChange={(e) => updateMarketEvidence({ target_market: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Customer type
+              <input
+                type="text"
+                value={marketEvidence.customer_type ?? ""}
+                onChange={(e) => updateMarketEvidence({ customer_type: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Geography
+              <input
+                type="text"
+                value={marketEvidence.geography ?? ""}
+                onChange={(e) => updateMarketEvidence({ geography: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Stage
+              <select
+                value={marketEvidence.startup_stage ?? ""}
+                onChange={(e) => updateMarketEvidence({ startup_stage: e.target.value || null })}
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              >
+                <option value="">Unspecified</option>
+                <option value="idea">Idea</option>
+                <option value="mvp">MVP</option>
+                <option value="early_traction">Early traction</option>
+                <option value="growth">Growth</option>
+              </select>
+            </label>
+            <label className="block text-xs text-ink-secondary">
+              Known competitors (comma-separated)
+              <input
+                type="text"
+                value={competitorsInput}
+                onChange={(e) => setCompetitorsInput(e.target.value)}
+                onBlur={() =>
+                  updateMarketEvidence({
+                    known_competitors: competitorsInput
+                      .split(",")
+                      .map((c) => c.trim())
+                      .filter(Boolean),
+                  })
+                }
+                className="mt-1 w-full rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2 text-sm text-ink-primary"
+              />
+            </label>
+          </div>
+        </div>
+      </details>
 
       {error && (
         <p role="alert" className="mt-6 rounded-xl border border-danger-500/30 bg-danger-500/10 p-3 text-sm text-danger-400">
