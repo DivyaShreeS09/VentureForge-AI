@@ -13,7 +13,7 @@ Turn one startup idea into a full investor blueprint — industry fit, funding r
 
 <!-- Add hero banner at docs/assets/hero-banner.png (recommended 1600x700) -->
 
-**[Preview](#screenshots)** · **[Product Journey](#product-journey)** · **[AI Workflow](#the-ai-workflow)** · **[Machine Learning](#machine-learning)** · **[Architecture](#architecture)** · **[Quick Start](#quick-start)**
+**[Product Journey](#product-journey)** · **[AI Workflow](#the-ai-workflow)** · **[Machine Learning](#machine-learning)** · **[Architecture](#architecture)** · **[Quick Start](#quick-start)**
 
 </div>
 
@@ -73,7 +73,7 @@ journey
 | **Explainability** — shows the reasoning behind every prediction | **Live Workflow Progress** — watch the pipeline run in real time |
 | **Confidence Scoring** — flags low-confidence results instead of guessing | **Unified Results View** — one screen for every signal |
 | **Evidence Checks** — surfaces what's missing before the verdict | **Analysis History** — every past run, saved |
-| **Judge Agent** — combines all outputs into one final evaluation | **Report-Ready Output** — a blueprint you can act on |
+| **Judge Agent** — combines all outputs into one final evaluation | **Structured Blueprint** — organizes the final findings into a reusable startup plan |
 
 ## Why Not Just a Chatbot?
 
@@ -115,11 +115,13 @@ flowchart TD
     style BLUEPRINT fill:#1a1a2e,stroke:#22c55e,color:#fff
 ```
 
-**Industry Classification** — determines the startup's domain before every other module runs.
-**Funding Readiness** — surfaces what investors expect before a pitch.
-**Success Prediction** — measures how closely the idea patterns after historical outcomes.
-**Revenue Estimation** — grounds ambition in a realistic range.
-**Judge Agent** — the single point where every signal above converges into one verdict, with an optional Gemini narrative layered on top, never replacing it.
+| Module | Role in the Workflow |
+|---|---|
+| **Industry Classification** | Determines the startup's domain before the remaining analysis begins. |
+| **Funding Readiness** | Evaluates whether the submitted idea contains the evidence investors expect. |
+| **Success Prediction** | Compares the startup's characteristics with historical outcome patterns. |
+| **Revenue Estimation** | Produces conservative, base, and optimistic revenue scenarios. |
+| **Judge Agent** | Combines all model and agent outputs into one final evaluation, with an optional Gemini narrative layered on top — never replacing it. |
 
 ## Machine Learning
 
@@ -163,12 +165,13 @@ flowchart TD
 | **Backend** | FastAPI · SQLAlchemy · Alembic |
 | **Database** | PostgreSQL |
 | **Artificial Intelligence** | LangGraph · Google Gemini |
-| **Machine Learning** | TF-IDF · Logistic Regression · HistGradientBoosting · Sentence Transformers |
+| **Machine Learning** | TF-IDF · Logistic Regression · HistGradientBoosting |
+| **Evaluated Representations** | Sentence Transformers *(challenger, not used in the live classifier)* |
 | **Explainable AI** | Feature Importance · Term Contributions · Confidence Calibration |
 | **Data Processing** | pandas · NumPy · scikit-learn |
 | **Testing** | pytest · Vitest · React Testing Library |
 
-## Repository
+## Project Structure
 
 | | |
 |---|---|
@@ -176,30 +179,41 @@ flowchart TD
 | `frontend/` | React UI, workflow view, results, reports |
 | `ml/` | Training, evaluation, feature engineering, explainability |
 
-## Screenshots
-
 <!--
-  docs/assets/hero-banner.png · docs/assets/demo.gif
-  docs/assets/screenshots/{idea-input,workflow,results,explainability,report}.png
--->
+  Add after the frontend is finalized:
 
-| | |
-|---|---|
-| **Hero** — where the idea begins | **Idea Intake** — the input form |
-| **Workflow** — the pipeline in motion | **Results** — the unified view |
-| **Explainability** — the reasoning behind it | **Judge Verdict** — the final decision |
+  docs/assets/hero-banner.png
+  docs/assets/demo.gif
+  docs/assets/screenshots/idea-input.png
+  docs/assets/screenshots/workflow.png
+  docs/assets/screenshots/results.png
+  docs/assets/screenshots/explainability.png
+  docs/assets/screenshots/report.png
+-->
 
 ## Quick Start
 
 ```bash
-git clone <repository-url> && cd VentureForge-AI
+git clone https://github.com/DivyaShreeS09/VentureForge-AI.git
+cd VentureForge-AI
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 
 docker compose up -d                 # PostgreSQL — or use a native install
 
 python -m venv backend/.venv
-source backend/.venv/bin/activate    # Windows: backend\.venv\Scripts\Activate.ps1
+```
+
+**Activate the virtual environment**
+
+```bash
+source backend/.venv/bin/activate    # macOS / Linux
+```
+```powershell
+backend\.venv\Scripts\Activate.ps1   # Windows
+```
+
+```bash
 pip install -r backend/requirements.txt -r ml/requirements.txt
 cd frontend && npm install && cd ..
 
@@ -207,9 +221,20 @@ cd backend && alembic upgrade head && cd ..
 
 python -m ml.src.training.train_industry_classifier
 python -m ml.src.training.train_success_classifier
+```
 
-cd backend && uvicorn app.main:app --reload   # terminal 1
-cd frontend && npm run dev                    # terminal 2
+**Run it**
+
+**Terminal 1 — Backend**
+```bash
+cd backend
+uvicorn app.main:app --reload
+```
+
+**Terminal 2 — Frontend**
+```bash
+cd frontend
+npm run dev
 ```
 
 | | |
