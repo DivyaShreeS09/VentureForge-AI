@@ -25,6 +25,10 @@ Validating a startup idea usually means a dozen scattered tools and a friend's o
 
 **Most startup tools answer questions. VentureForge AI builds a decision path.**
 
+## The Vision
+
+VentureForge AI is designed as an AI-powered startup-building ecosystem, not merely an idea evaluator. It combines machine learning, business-intelligence agents, explainable decision support, and startup planning into one coordinated workflow — from concept validation to an investor-ready blueprint.
+
 ## Product Journey
 
 ```mermaid
@@ -57,40 +61,19 @@ journey
 
 ## Product Capabilities
 
-<table>
-<tr><th>Machine Learning</th><th>Business Intelligence</th></tr>
-<tr><td>
+| Machine Learning | Business Intelligence |
+|---|---|
+| **Industry Classification** — identifies the startup's primary sector | **Market Intelligence** — frames the opportunity and its constraints |
+| **Success Prediction** — compares the idea against historical outcomes | **Competitor Analysis** — maps known alternatives and gaps |
+| **Funding Readiness** — evaluates investor preparedness across key dimensions | **Customer Persona** — defines the strongest early-adopter profile |
+| **Revenue Scenarios** — models conservative, base, and optimistic outlooks | **Business Model** — assembles value proposition, channels, and revenue streams |
 
-- Industry Classification
-- Success Prediction
-- Funding Readiness
-- Revenue Scenarios
-
-</td><td>
-
-- Market Intelligence
-- Competitor Analysis
-- Customer Persona
-- Business Model
-
-</td></tr>
-<tr><th>Decision Layer</th><th>Product</th></tr>
-<tr><td>
-
-- Explainability
-- Confidence Scoring
-- Evidence Checks
-- Judge Agent
-
-</td><td>
-
-- Live Workflow Progress
-- Unified Results View
-- Analysis History
-- Report-Ready Output
-
-</td></tr>
-</table>
+| Decision Layer | Product |
+|---|---|
+| **Explainability** — shows the reasoning behind every prediction | **Live Workflow Progress** — watch the pipeline run in real time |
+| **Confidence Scoring** — flags low-confidence results instead of guessing | **Unified Results View** — one screen for every signal |
+| **Evidence Checks** — surfaces what's missing before the verdict | **Analysis History** — every past run, saved |
+| **Judge Agent** — combines all outputs into one final evaluation | **Report-Ready Output** — a blueprint you can act on |
 
 ## Why Not Just a Chatbot?
 
@@ -140,10 +123,10 @@ flowchart TD
 
 ## Machine Learning
 
-| Model | Purpose | Result | Metric |
-|---|---|---|---|
-| Industry Classifier | Places the idea in the right domain | 7 categories, verified against an independent test set | 0.776 macro F1 |
-| Success Predictor | Estimates likeness to historical outcomes | Calibrated probability with a confidence band | 0.855 ROC-AUC |
+| Model | What It Does | Performance |
+|---|---|---|
+| Industry Classifier | Selects the most relevant startup industry from seven categories | Macro F1: 0.776 — consistent performance across all categories |
+| Success Predictor | Compares the startup with historical company outcomes | ROC-AUC: 0.855 — strong separation between outcome patterns |
 
 Full methodology and dataset detail: [`ml/DATASETS.md`](ml/DATASETS.md).
 
