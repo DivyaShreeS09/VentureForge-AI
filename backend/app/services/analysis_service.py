@@ -12,6 +12,7 @@ from app.agents.state import OrchestratorState
 from app.models.analysis import Analysis
 from app.models.startup import Startup
 from app.schemas.startup import StartupCreateRequest
+from app.schemas.student3 import Student3Outputs
 
 
 def create_startup(db: Session, payload: StartupCreateRequest) -> Startup:
@@ -20,9 +21,7 @@ def create_startup(db: Session, payload: StartupCreateRequest) -> Startup:
         name=payload.name,
         description=payload.description,
         funding_answers=payload.funding_answers.model_dump(),
-        company_metrics=payload.company_metrics.model_dump(),
-        revenue_assumptions=payload.revenue_assumptions.model_dump(),
-        market_evidence=payload.market_evidence.model_dump(),
+        customer_rfm=payload.customer_rfm.model_dump() if payload.customer_rfm else None,
         created_at=now,
         updated_at=now,
     )
@@ -56,20 +55,18 @@ def run_analysis_for_startup(db: Session, startup: Startup) -> Analysis:
         analysis.industry_model_version = industry.get("model_version") if industry else None
         analysis.funding_assessment = funding
         analysis.funding_rubric_version = funding.get("rubric_version") if funding else None
-
-        success_prediction = state.get("success_prediction")
-        analysis.success_prediction = success_prediction
-        analysis.success_model_version = success_prediction.get("model_version") if success_prediction else None
-
-        revenue_estimate = state.get("revenue_estimate")
-        analysis.revenue_estimate = revenue_estimate
-        analysis.revenue_engine_version = revenue_estimate.get("engine_version") if revenue_estimate else None
-
-        analysis.market_intelligence = state.get("market_intelligence")
-        analysis.competitor_analysis = state.get("competitor_analysis")
-        analysis.customer_personas = state.get("customer_personas")
-        analysis.business_model = state.get("business_model")
-
+        if state.get("status") == "COMPLETED":
+            analysis.student3_outputs = Student3Outputs(
+                customer_segment=state.get("customer_segment"),
+                ranked_actions=state.get("ranked_actions") or [],
+                innovation_opportunities=state.get("innovation_opportunities") or [],
+                risks=state.get("risk_assessment") or [],
+                growth_strategy=state.get("growth_strategy") or [],
+                pitch_deck=state.get("pitch_deck") or [],
+                executive_summary=[state.get("judge_summary", {}).get("overall_assessment", "")],
+            ).model_dump()
+        else:
+            analysis.student3_outputs = None
         analysis.judge_summary = state.get("judge_summary")
         analysis.workflow_trace = state.get("trace")
         analysis.error_message = state.get("error")
@@ -81,10 +78,8 @@ def run_analysis_for_startup(db: Session, startup: Startup) -> Analysis:
         startup_name=startup.name,
         startup_description=startup.description,
         funding_answers=startup.funding_answers,
+        customer_rfm=startup.customer_rfm,
         persist_fn=persist,
-        company_metrics=startup.company_metrics,
-        revenue_assumptions=startup.revenue_assumptions,
-        market_evidence=startup.market_evidence,
     )
     db.refresh(analysis)
     return analysis

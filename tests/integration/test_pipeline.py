@@ -49,6 +49,7 @@ def test_submit_analyze_and_reload_returns_same_persisted_result(client):
     assert first["industry_prediction"]["predicted_industry"] in set(metadata["labels"])
     assert first["funding_assessment"]["overall_score"] > 0
     assert first["judge_summary"]["overall_assessment"]
+    assert first["student3_outputs"]["customer_segment"]
 
     # Simulate a page reload: an independent GET must return the exact same persisted analysis.
     reload_response = client.get(f"/api/v1/analyses/{first['id']}")
@@ -58,3 +59,4 @@ def test_submit_analyze_and_reload_returns_same_persisted_result(client):
     assert second["industry_prediction"] == first["industry_prediction"]
     assert second["funding_assessment"] == first["funding_assessment"]
     assert second["judge_summary"] == first["judge_summary"]
+    assert second["student3_outputs"] == first["student3_outputs"]

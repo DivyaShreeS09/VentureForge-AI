@@ -39,6 +39,7 @@ export interface Startup {
   company_metrics: CompanyMetrics;
   revenue_assumptions: RevenueAssumptions;
   market_evidence: MarketEvidence;
+  customer_rfm: CustomerRFMInput | null;
   created_at: string;
   updated_at: string;
 }
@@ -119,6 +120,23 @@ export interface JudgeSummary {
   /** Optional supplementary narrative from Gemini — present only when GEMINI_API_KEY is
    * configured server-side and the call succeeded. Never affects industry/confidence/score. */
   llm_narrative?: LlmNarrative | null;
+  evidence_categories?: Record<string, string[]>;
+}
+
+export interface CustomerRFMInput {
+  recency_days: number;
+  frequency: number;
+  monetary: number;
+}
+
+export interface Student3Outputs {
+  customer_segment: { segment_id: string; segment_name: string; fit_score: number | null; characteristics: string[]; pain_points: string[]; recommended_channels: string[]; evidence_basis: string[]; limitations: string[]; model_version: string; method: "clustering_model" | "unavailable" } | null;
+  ranked_actions: { title: string; priority_score: number; impact: string; effort: string; urgency: string; evidence_basis: string[]; dependency: string; readiness_dimension: string; ranking_version: string }[];
+  innovation_opportunities: { category: string; opportunity: string; rationale: string; validation_requirement: string; assumptions: string[] }[];
+  risks: { title: string; category: string; probability_band: string; impact_band: string; severity: string; evidence_basis: string[]; mitigation: string; early_warning_indicator: string; assumptions: string[] }[];
+  growth_strategy: { area: string; recommendation: string; rationale: string; dependency: string; assumptions: string[] }[];
+  pitch_deck: { title: string; content: string[]; evidence_status: string }[];
+  executive_summary: string[];
 }
 
 export interface WorkflowTraceStep {
@@ -254,6 +272,7 @@ export interface Analysis {
   competitor_analysis: CompetitorAnalysis | null;
   customer_personas: CustomerPersonas | null;
   business_model: BusinessModel | null;
+  student3_outputs: Student3Outputs | null;
   judge_summary: JudgeSummary | null;
   workflow_trace: WorkflowTraceStep[] | null;
   error_message: string | null;

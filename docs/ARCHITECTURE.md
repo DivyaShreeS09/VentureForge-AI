@@ -1,10 +1,9 @@
 # Architecture
 
-Reflects the Student 1 (industry classification, funding readiness, Judge Agent) and Student 2
-(startup success prediction, revenue estimation, market intelligence, competitor analysis,
-customer persona, business model) vertical slices actually implemented. Customer
-Segmentation/Innovation/Risk/Growth/Pitch/Dashboard (Student 3) is not implemented yet — see
-"Extension Points" below for how it plugs in.
+Reflects the Student 1 foundation plus the additive Student 3 vertical slice: industry
+classification, funding readiness, segmentation fallback, deterministic innovation/risk/growth/
+pitch planning, action ranking, and Judge Agent synthesis. Student 2 modules remain optional
+extension points and are not required by this flow.
 
 ## System Overview
 
@@ -47,7 +46,8 @@ one place a call can happen, and only if explicitly configured.
 
 ## Multi-Agent Flow
 
-Thirteen nodes, deterministic routing, no loops, no external API call required:
+Student 3 extends the deterministic flow with additive planning nodes. No external API call is
+required for either the Student 1 foundation or Student 3 outputs:
 
 ```
 input_validation ──(invalid)──► invalid_input ──┐
@@ -56,18 +56,6 @@ input_validation ──(invalid)──► invalid_input ──┐
 industry_classification                         │
        ▼                                        │
 funding_readiness                                │
-       ▼                                        │
-predict_success        (Student 2 — success_prediction; app.ml.success_predictor)
-       ▼
-estimate_revenue        (Student 2 — revenue_estimate; app.ml.revenue_scenario)
-       ▼
-analyze_market          (Student 2 — market_intelligence; app.agents.market_agent)
-       ▼
-analyze_competitors     (Student 2 — competitor_analysis; app.agents.competitor_agent)
-       ▼
-build_customer_persona  (Student 2 — customer_personas; app.agents.customer_persona_agent)
-       ▼
-evaluate_business_model (Student 2 — business_model; app.agents.business_model_agent)
        ▼                                        │
 evidence_confidence_check                        │
        ▼                                        │
@@ -78,10 +66,6 @@ evidence_confidence_check                        │
  final_response
 ```
 
-(Node ids for the Student 2 steps — `predict_success`, `estimate_revenue`, etc. — are deliberately
-distinct from their `OrchestratorState` output keys, since LangGraph rejects a node id that
-collides with an existing state key.)
-
 - **input_validation**: rejects a missing name or a description under 10 characters; routes
   straight to `invalid_input` (which marks the run `FAILED`) rather than running any ML node.
 - **industry_classification**: calls the trained TF-IDF + Logistic Regression pipeline
@@ -89,24 +73,16 @@ collides with an existing state key.)
   `industry_prediction: null` rather than raising — a missing model is not the same failure class
   as invalid input.
 - **funding_readiness**: calls the deterministic rubric (`backend/app/ml/funding_readiness.py`).
-- **predict_success**: calls the trained binary classifier (`backend/app/ml/success_predictor.py`)
-  on `company_metrics` (all fields optional; missing ones are imputed by the trained pipeline and
-  listed in `missing_features`). Degrades to `success_prediction: null` if untrained.
-- **estimate_revenue**: a deterministic scenario calculator (`backend/app/ml/revenue_scenario.py`),
-  never a trained model — returns conservative/base/optimistic 12-month projections from
-  user-supplied `revenue_assumptions`, or `available: false` if the minimum assumptions are absent.
-- **analyze_market** / **analyze_competitors** / **build_customer_persona** /
-  **evaluate_business_model**: deterministic agents (`backend/app/agents/{market,competitor,
-  customer_persona,business_model}_agent.py`) that synthesize only `market_evidence`, the industry
-  prediction, and the funding-readiness rubric breakdown — no live market/company data source is
-  integrated, so every field not derivable from those inputs is reported as an evidence gap, never
-  invented.
+- **customer_segmentation**: returns an explicitly labelled deterministic startup-buyer segment
+  fallback from model/rubric evidence. It is not presented as a live transaction-data cluster.
+- **recommendation_ranking**, **innovation**, **risk_assessment**, **growth_strategy**, and
+  **pitch_deck**: versioned deterministic planning outputs grounded in submitted evidence; they
+  label missing revenue, customer, funding, legal, and market claims as unknown/evidence required.
 - **evidence_confidence_check**: flags low industry-confidence (<0.35) and surfaces how many
   funding dimensions were left unanswered.
-- **judge**: deterministic synthesis (`backend/app/agents/judge.py`) — reformats all upstream
-  outputs into strengths/weaknesses/next actions/confidence/source_attribution, and never invents
-  a fact not present in an upstream output, nor blends incompatible values (e.g. a success
-  probability is never averaged with a funding-readiness score).
+- **judge**: deterministic synthesis (`backend/app/agents/judge.py`) — reformats the two upstream
+  outputs into strengths/weaknesses/next actions/confidence, and never invents a fact not present
+  in either upstream output.
 - **persistence**: the single place that finalizes run status (`COMPLETED` unless something
   upstream set `FAILED`) and writes the `Analysis` row.
 - **final_response**: formats the trace; does not change status.
@@ -147,23 +123,17 @@ the pipeline proceeds exactly as if no provider were configured.
 ## ML Flow
 
 ```
-ml/data/raw (real dataset, or generated bootstrap corpus as a fallback) → ml/src/preprocessing
-    → ml/src/features → ml/src/training → ml/models/<model_name>/<version>/ (joblib + metadata.json)
+ml/data/raw (real YC dataset, or generated bootstrap corpus as a fallback) → ml/src/preprocessing
+    → ml/src/features → ml/src/training → ml/models/industry_classifier/v2/ (joblib + metadata.json)
          │
          ▼
-backend/app/ml/{predictor,success_predictor}.py (each loads once, cached)
+backend/app/ml/predictor.py (loads once, cached; serves predict_industry())
 ```
-
-Two independently trained models follow this same shape:
-- `industry_classifier` (`ml/src/training/train_industry_classifier.py` →
-  `backend/app/ml/predictor.py`) — text classification.
-- `success_predictor` (`ml/src/training/train_success_classifier.py` →
-  `backend/app/ml/success_predictor.py`) — binary classification on structured company/funding
-  features (`ml/src/features/success_features.py`).
 
 Training/evaluation never runs inside the FastAPI request path. See
 [ml/README.md](../ml/README.md) and [ml/DATASETS.md](../ml/DATASETS.md) for the dataset honesty
-caveat both pipelines operate under, and the real/rejected dataset audit trail for each task.
+caveat this pipeline currently operates under (no verified real dataset was available in the
+development environment — see that document before trusting any accuracy figure).
 
 ## Module Layout
 
@@ -176,11 +146,8 @@ backend/app/
 ├── models/                     — SQLAlchemy ORM: Startup, Analysis
 ├── schemas/                      — Pydantic request/response models
 ├── services/                       — analysis_service.py (business logic; routers call this)
-├── agents/                           — state.py, nodes.py, judge.py, orchestrator.py,
-│                                        market_agent.py, competitor_agent.py,
-│                                        customer_persona_agent.py, business_model_agent.py
-├── ml/                                 — funding_readiness.py, predictor.py, success_predictor.py,
-│                                          revenue_scenario.py
+├── agents/                           — state.py, nodes.py, judge.py, student3.py, orchestrator.py
+├── ml/                                 — funding_readiness.py, predictor.py
 └── ai/                                   — optional LLM layer (see "Optional LLM Layer" above)
 ```
 
@@ -188,14 +155,15 @@ Import direction: `api → services → {agents, database, ml}`. The one excepti
 `backend/app/ml/predictor.py` importing `ml.src.explainability` directly (the `ml/` package lives
 alongside `backend/`, not inside it — see that file's module docstring for why).
 
-## Extension Points (Student 3)
+## Extension Points (Student 2 / Student 3)
 
-These are additive extension points (already exercised once by the Student 2 nodes described
-above), not places to modify Student 1 or Student 2's existing nodes, schemas, or tables.
-Everything below has been verified to accept new keys/nodes without touching existing code paths.
+These are additive extension points, not places to modify Student 1's existing nodes, schemas, or
+tables. Everything below has been verified to accept new keys/nodes without touching existing
+code paths.
 
-**Adding a new orchestrator node** (Student 3: customer segmentation, innovation, risk, growth,
-pitch):
+**Adding a new orchestrator node** (Student 2: success prediction, revenue estimation, market
+intelligence, competitor analysis, customer persona, business model — Student 3: customer
+segmentation, innovation, risk, growth, pitch):
 1. Write a pure node function in a new file (mirror `backend/app/agents/nodes.py`'s shape: takes
    `OrchestratorState`, returns only the keys it sets, e.g. `{"my_result": ..., "trace": [...]}`).
    `OrchestratorState` (`state.py`) is `total=False`, so adding a new key never breaks existing
@@ -218,8 +186,8 @@ pitch):
 6. Add tests mirroring `backend/tests/test_orchestrator.py` and `test_judge.py`'s shape (success
    path, failure path, no-fabrication check).
 
-**Adding a new ML model**: follow the same shape as `ml/src/training/train_industry_classifier.py`
-and `ml/src/training/train_success_classifier.py` — dataset schema-inspected and approved in
+**Adding a new ML model** (e.g. Student 2's success/revenue models): follow the same shape as
+`ml/src/training/train_industry_classifier.py` — dataset schema-inspected and approved in
 `ml/DATASETS.md` first (see the real/rejected dataset table there for the bar to clear), a dummy
 baseline always included in the comparison, trained offline (never inside a request), evaluated
 with leakage checks before selection, and served via a new `backend/app/ml/*.py` module loaded
@@ -244,12 +212,7 @@ the first unoptimized export of these assets was over 1MB each and had to be red
 
 ## Data Model
 
-See [ml/DATASETS.md](../ml/DATASETS.md) for dataset details. Two tables (`startups`, `analyses`),
-no speculative tables for unimplemented (Student 3) agents:
-`backend/alembic/versions/0001_initial.py` — original Student 1 schema;
-`backend/alembic/versions/0002_student2_extension.py` — additive Student 2 columns
-(`company_metrics`/`revenue_assumptions`/`market_evidence` on `startups`;
-`success_prediction`/`revenue_estimate`/`market_intelligence`/`competitor_analysis`/
-`customer_personas`/`business_model` plus their version columns on `analyses`). Alembic (not a
-hand-maintained `schema.sql`) is the single source of truth for the schema; never edit `0001_*` in
-place — extend with a new revision instead.
+See [ml/DATASETS.md](../ml/DATASETS.md) for dataset details and
+`backend/alembic/versions/0001_initial.py` for the `startups`/`analyses` schema — two tables, no
+speculative tables for unimplemented agents. Alembic (not a hand-maintained `schema.sql`) is the
+single source of truth for the schema.

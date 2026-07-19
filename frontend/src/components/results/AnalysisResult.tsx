@@ -4,6 +4,7 @@ import { ConfidenceBar } from "../visualizations/ConfidenceBar";
 import { ReadinessReactor } from "../visualizations/ReadinessReactor";
 import { Section } from "./Section";
 import { WorkflowTrace } from "./WorkflowTrace";
+import { Student3Results } from "./Student3Results";
 
 /** Word+char TF-IDF often surfaces several char n-gram fragments of the same root ("robot",
  * "robo", "obot", "rob") alongside the whole word — each is a real, independently-computed
@@ -54,7 +55,7 @@ function decisionFields(judge: JudgeSummary) {
 }
 
 export function AnalysisResult({ analysis }: { analysis: Analysis }) {
-  const { industry_prediction, funding_assessment, judge_summary } = analysis;
+  const { industry_prediction, funding_assessment, judge_summary, student3_outputs } = analysis;
 
   if (analysis.status === "FAILED") {
     return (
@@ -86,9 +87,9 @@ export function AnalysisResult({ analysis }: { analysis: Analysis }) {
         className="pointer-events-none absolute -right-16 -top-10 -z-10 w-72 opacity-[0.05] sm:w-96"
       />
 
-      {/* Venture Command Overview */}
+      {/* Executive Dashboard */}
       <section className="panel panel-glow p-6 sm:p-8">
-        <p className="text-xs font-medium uppercase tracking-[0.15em] text-ink-muted">Venture Command Overview</p>
+        <p className="text-xs font-medium uppercase tracking-[0.15em] text-ink-muted">Executive Dashboard</p>
         <div className="mt-4 flex flex-wrap items-baseline gap-x-10 gap-y-4">
           {industry_prediction && (
             <div>
@@ -617,6 +618,8 @@ export function AnalysisResult({ analysis }: { analysis: Analysis }) {
           </ul>
         </Section>
       )}
+
+      {student3_outputs && <Student3Results outputs={student3_outputs} />}
 
       {/* Workflow Timeline */}
       <Section id="workflow-trace" title="Workflow Timeline" source="deterministic">

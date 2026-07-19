@@ -24,6 +24,7 @@ class Analysis(Base):
 
     funding_rubric_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     funding_assessment: Mapped[dict | None] = mapped_column(JSONVariant, nullable=True)
+    student3_outputs: Mapped[dict | None] = mapped_column(JSONVariant, nullable=True)
 
     # Student 2 outputs — see docs/ARCHITECTURE.md "Student 2 extension" and each producing
     # module's docstring for schema/versioning/source-attribution details.

@@ -988,6 +988,13 @@ competitor names — all optional). Every field not derivable from those three s
 as an explicit evidence gap with a recommended validation action, never invented — see each
 module's docstring for the specific fabrication risks it guards against (e.g. never inventing a
 TAM/SAM/SOM figure, a real competitor's pricing, or a customer's age/income).
+## Customer Segmentation Research Dataset
+
+Customer-segmentation method comparison uses the [UCI Online Retail dataset](https://archive.ics.uci.edu/dataset/352/online+retail), licensed under **CC BY 4.0**. It contains 541,909 transactional rows from a UK non-store retailer between 1 December 2010 and 9 December 2011, with `InvoiceNo`, `StockCode`, `Description`, `Quantity`, `InvoiceDate`, `UnitPrice`, `CustomerID`, and `Country`.
+
+`ml/src/preprocessing/customer_segmentation.py` removes duplicate transactions, missing customer IDs, invalid dates, cancellations/returns, and non-positive quantity/price rows. It fixes a snapshot date, builds RFM features, clips customer-level 1st/99th-percentile outliers, applies `log1p`, and uses `RobustScaler`. `train_customer_segmentation_artifact.py` compares K-Means, MiniBatchKMeans, Agglomerative Clustering, and Gaussian Mixture over k=2–8 using silhouette, Davies–Bouldin, Calinski–Harabasz, cluster-size sanity checks, and adjusted-Rand resample stability; it does not report classification accuracy.
+
+The raw workbook and trained artifacts are never committed. A versioned local artifact can assign a segment only when the caller supplies customer-level `recency_days`, `frequency`, and `monetary` inputs; otherwise the API reports the segmentation model as unavailable instead of fabricating a fallback segment.
 
 ## Adding a Verified Dataset
 

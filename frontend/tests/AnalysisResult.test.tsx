@@ -38,6 +38,7 @@ const analysis: Analysis = {
     missing_evidence: ["Traction"],
     disclaimer: "This is a deterministic readiness assessment, not investment advice.",
   },
+  student3_outputs: null,
   judge_summary: {
     overall_assessment: "This startup was classified as 'fintech' and rated 'developing'.",
     strengths: ["Problem Clarity: Specific, well-defined problem"],
@@ -75,6 +76,25 @@ describe("AnalysisResult", () => {
   it("shows a failure banner when status is FAILED", () => {
     render(<AnalysisResult analysis={{ ...analysis, status: "FAILED", error_message: "boom" }} />);
     expect(screen.getByRole("alert")).toHaveTextContent("boom");
+  });
+
+  it("renders Student 3 sections only when the backend supplied structured output", () => {
+    const withStudent3: Analysis = {
+      ...analysis,
+      student3_outputs: {
+        customer_segment: { segment_id: "unavailable", segment_name: "Customer segmentation unavailable", fit_score: null, characteristics: [], pain_points: [], recommended_channels: [], evidence_basis: ["Input"], limitations: ["RFM input not supplied"], model_version: "unavailable", method: "unavailable" },
+        ranked_actions: [{ title: "Interview prospective customers", priority_score: 90, impact: "high", effort: "low", urgency: "now", evidence_basis: ["Input"], dependency: "Participants", readiness_dimension: "customer_pain_evidence", ranking_version: "v1" }],
+        innovation_opportunities: [{ category: "feature", opportunity: "Define an outcome", rationale: "Testable", validation_requirement: "Observe users", assumptions: [] }],
+        risks: [{ title: "Unvalidated customer problem", category: "market", probability_band: "high", impact_band: "high", severity: "high", evidence_basis: ["Input"], mitigation: "Interview users", early_warning_indicator: "No repeat pain", assumptions: [] }],
+        growth_strategy: [{ area: "validation", recommendation: "Interview customers", rationale: "Gap", dependency: "Cohort", assumptions: [] }],
+        pitch_deck: [{ title: "Traction", content: ["Unknown"], evidence_status: "unknown" }],
+        executive_summary: [],
+      },
+    };
+    render(<AnalysisResult analysis={withStudent3} />);
+    expect(screen.getByText("Customer Segment")).toBeInTheDocument();
+    expect(screen.getByText("Risk Matrix")).toBeInTheDocument();
+    expect(screen.getByText("Pitch Deck Preview")).toBeInTheDocument();
   });
 
   it("flags an uncertain classification instead of presenting it as settled fact", () => {
