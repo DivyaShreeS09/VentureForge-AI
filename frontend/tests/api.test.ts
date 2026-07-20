@@ -29,4 +29,14 @@ describe("api client error handling", () => {
       createStartup({ name: "Nova", description: "A long enough description.", funding_answers: {} }),
     ).rejects.toBeInstanceOf(ApiError);
   });
+
+  it("throws a friendly timeout ApiError when the request is aborted", async () => {
+    // Simulates the abort fetch would raise once the client's own request timeout fires —
+    // asserting on that reaction directly rather than waiting out the real timeout duration.
+    (fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new DOMException("The operation was aborted.", "AbortError"));
+
+    await expect(
+      createStartup({ name: "Nova", description: "A long enough description.", funding_answers: {} }),
+    ).rejects.toMatchObject({ detail: "The request took too long to respond. Please try again." });
+  });
 });

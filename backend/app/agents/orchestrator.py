@@ -24,16 +24,26 @@ from langgraph.graph import END, StateGraph
 
 from app.agents import judge as judge_agent
 from app.agents.nodes import (
+    assess_risks_node,
+    build_pitch_deck_node,
     business_model_node,
     competitor_analysis_node,
     customer_persona_node,
     evidence_confidence_check_node,
     funding_readiness_node,
+    idea_expansion_node,
     industry_classification_node,
     input_validation_node,
     market_analysis_node,
+    mentor_synthesis_node,
+    plan_growth_strategy_node,
+    rank_actions_node,
     revenue_estimate_node,
+    segment_customers_node,
+    strategic_opportunity_node,
     success_prediction_node,
+    surface_innovation_node,
+    venture_positioning_node,
 )
 from app.agents.state import OrchestratorState
 from app.ai.base import LLMUnavailable
@@ -97,6 +107,16 @@ def _judge_node(state: OrchestratorState) -> dict:
             competitor_analysis=state.get("competitor_analysis"),
             customer_personas=state.get("customer_personas"),
             business_model=state.get("business_model"),
+            model_category=state.get("model_category"),
+            venture_positioning=state.get("venture_positioning"),
+            taxonomy_candidates=state.get("taxonomy_candidates"),
+            gemini_structured_recommendation=state.get("gemini_structured_recommendation"),
+            gemini_rationale=state.get("gemini_rationale"),
+            positioning_correction_rationale=state.get("positioning_correction_rationale"),
+            market_evidence=state.get("market_evidence"),
+            customer_segment=state.get("customer_segment"),
+            ranked_actions=state.get("ranked_actions"),
+            risks=state.get("risk_assessment"),
         )
         summary["llm_narrative"] = _try_llm_narrative(industry_prediction, funding_assessment, summary, state)
         return {"judge_summary": summary, "trace": [{"node": "judge", "status": "ok", "detail": None}]}
@@ -161,8 +181,25 @@ def build_graph(persist_fn: PersistFn | None = None):
     graph.add_node("analyze_competitors", competitor_analysis_node)
     graph.add_node("build_customer_persona", customer_persona_node)
     graph.add_node("evaluate_business_model", business_model_node)
+    graph.add_node("resolve_venture_positioning", venture_positioning_node)
+    # Phase 5 (Student 3) — deterministic growth/strategy planning nodes, additively spliced
+    # between the Student 2 chain and evidence_confidence_check. Node ids are deliberately
+    # distinct from the OrchestratorState keys they populate (see the "predict_success" comment
+    # above for why LangGraph requires this).
+    graph.add_node("segment_customers", segment_customers_node)
+    graph.add_node("rank_actions", rank_actions_node)
+    graph.add_node("surface_innovation", surface_innovation_node)
+    graph.add_node("assess_risks", assess_risks_node)
+    graph.add_node("plan_growth_strategy", plan_growth_strategy_node)
+    graph.add_node("build_pitch_deck", build_pitch_deck_node)
     graph.add_node("evidence_confidence_check", evidence_confidence_check_node)
     graph.add_node("judge", _judge_node)
+    graph.add_node("mentor_synthesis", mentor_synthesis_node)
+    # Node id deliberately distinct from the `idea_expansion` state key (see the comment above on
+    # "predict_success" vs `success_prediction` for why LangGraph requires this).
+    graph.add_node("expand_ideas", idea_expansion_node)
+    # Node id deliberately distinct from the `strategic_opportunity` state key, same reason.
+    graph.add_node("discover_strategic_opportunities", strategic_opportunity_node)
     graph.add_node("persistence", _make_persistence_node(persist_fn))
     graph.add_node("final_response", _final_response_node)
 
@@ -173,16 +210,30 @@ def build_graph(persist_fn: PersistFn | None = None):
         {"continue": "industry_classification", "invalid": "invalid_input"},
     )
     graph.add_edge("invalid_input", "persistence")
-    graph.add_edge("industry_classification", "funding_readiness")
+    # `resolve_venture_positioning` only needs `industry_prediction` + `startup_description` — it
+    # runs right after industry classification (not at the end) so `estimate_revenue` and
+    # `analyze_competitors` can key their deterministic defaults/suggestions off
+    # `venture_positioning.primary_domain`.
+    graph.add_edge("industry_classification", "resolve_venture_positioning")
+    graph.add_edge("resolve_venture_positioning", "funding_readiness")
     graph.add_edge("funding_readiness", "predict_success")
     graph.add_edge("predict_success", "estimate_revenue")
     graph.add_edge("estimate_revenue", "analyze_market")
     graph.add_edge("analyze_market", "analyze_competitors")
     graph.add_edge("analyze_competitors", "build_customer_persona")
     graph.add_edge("build_customer_persona", "evaluate_business_model")
-    graph.add_edge("evaluate_business_model", "evidence_confidence_check")
+    graph.add_edge("evaluate_business_model", "segment_customers")
+    graph.add_edge("segment_customers", "rank_actions")
+    graph.add_edge("rank_actions", "surface_innovation")
+    graph.add_edge("surface_innovation", "assess_risks")
+    graph.add_edge("assess_risks", "plan_growth_strategy")
+    graph.add_edge("plan_growth_strategy", "build_pitch_deck")
+    graph.add_edge("build_pitch_deck", "evidence_confidence_check")
     graph.add_edge("evidence_confidence_check", "judge")
-    graph.add_edge("judge", "persistence")
+    graph.add_edge("judge", "mentor_synthesis")
+    graph.add_edge("mentor_synthesis", "expand_ideas")
+    graph.add_edge("expand_ideas", "discover_strategic_opportunities")
+    graph.add_edge("discover_strategic_opportunities", "persistence")
     graph.add_edge("persistence", "final_response")
     graph.add_edge("final_response", END)
 
@@ -197,6 +248,7 @@ def run_pipeline(
     company_metrics: dict[str, Any] | None = None,
     revenue_assumptions: dict[str, Any] | None = None,
     market_evidence: dict[str, Any] | None = None,
+    customer_rfm: dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Run the full orchestration pipeline synchronously and return the final state."""
     compiled = build_graph(persist_fn)
@@ -207,6 +259,7 @@ def run_pipeline(
         "company_metrics": company_metrics or {},
         "revenue_assumptions": revenue_assumptions or {},
         "market_evidence": market_evidence or {},
+        "customer_rfm": customer_rfm,
         "status": "RUNNING",
         "error": None,
         "trace": [],

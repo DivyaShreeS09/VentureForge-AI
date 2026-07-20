@@ -83,3 +83,15 @@ cd frontend && npm run dev                    # terminal 2
 | Frontend tests | `npm run test` — from `frontend/` |
 | Integration tests | `pytest tests/integration` |
 | Frontend production build | `npm run build` — from `frontend/` |
+
+`backend/tests/` and `ml/tests/` are two separate suites, not duplicates of each other:
+`backend/tests/` exercises the served FastAPI application (API routes, agents, the orchestrated
+pipeline) end-to-end; `ml/tests/` exercises the offline training/preprocessing pipeline (feature
+engineering, dataset splitting, evaluation metrics) that produces the model artifacts
+`backend/app/ml/` loads. Neither imports from the other.
+
+## Runtime Dependencies
+
+PostgreSQL is the only datastore this application uses. There is no Redis (or any other cache/
+queue) client anywhere in the codebase — `docker-compose.yml` provisions PostgreSQL alone, for
+anyone who doesn't already have it installed natively.

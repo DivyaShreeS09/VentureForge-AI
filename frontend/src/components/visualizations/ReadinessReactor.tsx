@@ -59,7 +59,7 @@ export function ReadinessReactor({ score, level }: { score: number; level: strin
       <div>
         <p className="text-xs uppercase tracking-[0.15em] text-ink-muted">Readiness band</p>
         <p className="mt-1 text-display text-2xl text-ink-primary">{bandLabel}</p>
-        <p className="mt-1 text-xs text-ink-muted">Deterministic Assessment — see methodology below</p>
+        <p className="mt-1 text-xs text-ink-muted">See Advanced below for how this was calculated</p>
       </div>
     </div>
   );

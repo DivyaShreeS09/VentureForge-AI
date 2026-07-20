@@ -1,10 +1,12 @@
 # Architecture
 
-Reflects the Student 1 (industry classification, funding readiness, Judge Agent) and Student 2
+Reflects the Student 1 (industry classification, funding readiness, Judge Agent), Student 2
 (startup success prediction, revenue estimation, market intelligence, competitor analysis,
-customer persona, business model) vertical slices actually implemented. Customer
-Segmentation/Innovation/Risk/Growth/Pitch/Dashboard (Student 3) is not implemented yet — see
-"Extension Points" below for how it plugs in.
+customer persona, business model), and Student 3 (customer segmentation, ranked actions,
+innovation opportunities, planning risks, growth strategy, pitch-deck outline — see "Phase 5:
+Student 3 Integration" below) vertical slices, plus the Founder Guidance / Idea Expansion /
+Strategic Opportunity Discovery / Founder Decision Studio layers built on top of them (Phases 1-4).
+See "Extension Points" below for how a further vertical slice would plug in.
 
 ## System Overview
 
@@ -47,7 +49,9 @@ one place a call can happen, and only if explicitly configured.
 
 ## Multi-Agent Flow
 
-Thirteen nodes, deterministic routing, no loops, no external API call required:
+21 nodes (see `backend/tests/test_orchestrator.py::test_valid_input_completes_successfully` for
+the exact, tested order), deterministic routing, no loops, no external API call required for the
+deterministic pipeline itself:
 
 ```
 input_validation ──(invalid)──► invalid_input ──┐
@@ -55,64 +59,80 @@ input_validation ──(invalid)──► invalid_input ──┐
        ▼                                        │
 industry_classification                         │
        ▼                                        │
+resolve_venture_positioning                     │
+       ▼                                        │
 funding_readiness                                │
        ▼                                        │
-predict_success        (Student 2 — success_prediction; app.ml.success_predictor)
+predict_success  ─▶ estimate_revenue ─▶ analyze_market ─▶ analyze_competitors
+       ▼                                        │              (Student 2 chain)
+build_customer_persona ─▶ evaluate_business_model
        ▼
-estimate_revenue        (Student 2 — revenue_estimate; app.ml.revenue_scenario)
-       ▼
-analyze_market          (Student 2 — market_intelligence; app.agents.market_agent)
-       ▼
-analyze_competitors     (Student 2 — competitor_analysis; app.agents.competitor_agent)
-       ▼
-build_customer_persona  (Student 2 — customer_personas; app.agents.customer_persona_agent)
-       ▼
-evaluate_business_model (Student 2 — business_model; app.agents.business_model_agent)
+segment_customers ─▶ rank_actions ─▶ surface_innovation ─▶ assess_risks
+       ▼                                                    (Phase 5 / Student 3 chain)
+plan_growth_strategy ─▶ build_pitch_deck
        ▼                                        │
 evidence_confidence_check                        │
        ▼                                        │
      judge                                        │
+       ▼                                        │
+mentor_synthesis                                 │
+       ▼                                        │
+expand_ideas ─▶ discover_strategic_opportunities │
        ▼                                        │
    persistence ◄─────────────────────────────────┘
        ▼
  final_response
 ```
 
-(Node ids for the Student 2 steps — `predict_success`, `estimate_revenue`, etc. — are deliberately
-distinct from their `OrchestratorState` output keys, since LangGraph rejects a node id that
+(Node ids like `predict_success`, `expand_ideas`, `segment_customers`, etc. are deliberately
+distinct from the `OrchestratorState` output keys they populate — LangGraph rejects a node id that
 collides with an existing state key.)
 
 - **input_validation**: rejects a missing name or a description under 10 characters; routes
   straight to `invalid_input` (which marks the run `FAILED`) rather than running any ML node.
 - **industry_classification**: calls the trained TF-IDF + Logistic Regression pipeline
-  (`backend/app/ml/predictor.py`). If no artifact is trained yet, this degrades to
-  `industry_prediction: null` rather than raising — a missing model is not the same failure class
-  as invalid input.
-- **funding_readiness**: calls the deterministic rubric (`backend/app/ml/funding_readiness.py`).
-- **predict_success**: calls the trained binary classifier (`backend/app/ml/success_predictor.py`)
-  on `company_metrics` (all fields optional; missing ones are imputed by the trained pipeline and
-  listed in `missing_features`). Degrades to `success_prediction: null` if untrained.
-- **estimate_revenue**: a deterministic scenario calculator (`backend/app/ml/revenue_scenario.py`),
-  never a trained model — returns conservative/base/optimistic 12-month projections from
-  user-supplied `revenue_assumptions`, or `available: false` if the minimum assumptions are absent.
-- **analyze_market** / **analyze_competitors** / **build_customer_persona** /
-  **evaluate_business_model**: deterministic agents (`backend/app/agents/{market,competitor,
-  customer_persona,business_model}_agent.py`) that synthesize only `market_evidence`, the industry
-  prediction, and the funding-readiness rubric breakdown — no live market/company data source is
-  integrated, so every field not derivable from those inputs is reported as an evidence gap, never
-  invented.
+  (`backend/app/ml/predictor.py`). Degrades to `industry_prediction: null` if no artifact is
+  trained yet — a missing model is not the same failure class as invalid input.
+- **resolve_venture_positioning**: resolves the founder-facing `venture_positioning` from a
+  controlled taxonomy (`backend/app/agents/venture_positioning.py`,
+  `backend/app/ml/positioning_taxonomy.py`) — distinct from, and more specific than, the raw
+  industry classification. Only calls Gemini when the deterministic taxonomy signal is ambiguous.
+- **funding_readiness**: the deterministic rubric (`backend/app/ml/funding_readiness.py`).
+- **predict_success / estimate_revenue / analyze_market / analyze_competitors /
+  build_customer_persona / evaluate_business_model** (Student 2): trained success-prediction
+  model, a deterministic revenue-scenario calculator, and three deterministic business-intelligence
+  agents — see each module's docstring for its specific no-fabrication guarantee.
+- **segment_customers / rank_actions / surface_innovation / assess_risks /
+  plan_growth_strategy / build_pitch_deck** (Phase 5 / Student 3, `backend/app/agents/student3.py`):
+  deterministic growth/strategy planning grounded only in the funding-readiness breakdown and
+  industry prediction — labels missing revenue/customer/legal claims as "unknown"/"evidence
+  required" rather than inventing them. Customer segmentation attaches a real clustering result
+  only when a trained artifact *and* caller-supplied RFM input are both present
+  (`backend/app/ml/segmentation.py`); otherwise reports itself unavailable.
 - **evidence_confidence_check**: flags low industry-confidence (<0.35) and surfaces how many
   funding dimensions were left unanswered.
 - **judge**: deterministic synthesis (`backend/app/agents/judge.py`) — reformats all upstream
   outputs into strengths/weaknesses/next actions/confidence/source_attribution, and never invents
   a fact not present in an upstream output, nor blends incompatible values (e.g. a success
   probability is never averaged with a funding-readiness score).
+- **mentor_synthesis** (Phases 1/1.5): reconciles the Judge Agent's output and every
+  business-intelligence agent's output into one coherent, founder-facing `mentor_interpretation`
+  (`backend/app/agents/mentor_synthesis.py`) — Founder Guidance items, verdict, validation plan,
+  30/60/90 roadmap. Always runs its deterministic baseline first; Gemini may only rephrase a
+  narrow, safety-checked subset on top.
+- **expand_ideas** (Phase 2): Idea Expansion — `backend/app/agents/idea_expansion.py`.
+- **discover_strategic_opportunities** (Phase 3): Strategic Opportunity Discovery —
+  `backend/app/agents/strategic_opportunity.py`.
 - **persistence**: the single place that finalizes run status (`COMPLETED` unless something
   upstream set `FAILED`) and writes the `Analysis` row.
 - **final_response**: formats the trace; does not change status.
 
 State is a `TypedDict` (`backend/app/agents/state.py`); nodes never import each other directly —
-only `orchestrator.py` wires them.
+only `orchestrator.py` wires them. The Founder Decision Studio (Phase 4,
+`frontend/src/components/results/AnalysisResult.tsx` + `studio/*.tsx`) is a pure client-side
+presentation layer over this state — it derives its 9-section guided journey from data the
+pipeline above already computed, and never recomputes a score or prediction itself
+(`frontend/src/utils/founderDecision.ts`).
 
 ## Optional LLM Layer
 
@@ -230,6 +250,48 @@ once at import time (mirror `predictor.py`'s `@lru_cache`-backed loader).
 `gemini_provider.py` does. Wire it into `factory.py`'s `get_llm_provider()` behind its own env var
 — never change `NarrativeContext`/`NarrativeEnhancement` to add provider-specific fields, since
 those schemas are what guarantee no provider can override a deterministic value.
+
+## Phase 5: Student 3 Integration (implemented, 2026-07-20)
+
+The "Extension Points (Student 3)" plan above was followed to integrate Student 3's actual
+contribution (originally `2058d0357de81e283f57ff6f638faf0912ce9607` on `origin/main`, one commit
+ahead of the branch this repo continued from). That commit could not be merged directly — it was
+authored against a base that predated Student 2 and Phases 1-4, and its diff deleted the Student 2
+agents, judge.py's Student 2 kwargs, `company_metrics`/`revenue_assumptions`/`market_evidence`,
+and collided its own Alembic revision ids (`0002`/`0003`) with ones already used differently here.
+Every module was instead re-implemented additively, exactly per the extension-point rules above:
+
+- **New nodes** (`backend/app/agents/nodes.py`): `segment_customers_node`, `rank_actions_node`,
+  `surface_innovation_node`, `assess_risks_node`, `plan_growth_strategy_node`,
+  `build_pitch_deck_node` — pure functions calling `backend/app/agents/student3.py`. Spliced into
+  `build_graph()` between `evaluate_business_model` and `evidence_confidence_check`; none of the
+  existing node ids, edges, or the Student 2 chain were touched or renamed.
+- **New state keys** (`state.py`): `customer_rfm` (input), `customer_segment`, `ranked_actions`,
+  `innovation_opportunities`, `risk_assessment`, `growth_strategy`, `pitch_deck` (outputs) — added
+  alongside the existing keys, not replacing them.
+- **Judge Agent** (`judge.py`): `synthesize()` gained three new optional keyword arguments
+  (`customer_segment`, `ranked_actions`, `risks`), each contributing its own `source_attribution`
+  entry and passed through in the return dict — the existing Student 2/venture-positioning
+  parameters and return keys are unchanged.
+- **Segmentation** (`backend/app/ml/segmentation.py`): a version-checked joblib artifact loader —
+  assigns a segment only when both a trained artifact and caller-supplied customer RFM input
+  (`recency_days`/`frequency`/`monetary`) are present; otherwise reports segmentation as
+  unavailable rather than fabricating a fallback. The offline research pipeline that produces that
+  artifact (RFM feature engineering, a 4-way clustering comparison, and its own tests) lives in
+  `ml/src/preprocessing/customer_segmentation.py`, `ml/src/training/train_customer_segmentation*.py`,
+  and `ml/src/evaluation/clustering_metrics.py` — see `ml/DATASETS.md`'s "Customer Segmentation
+  Research Dataset" section for the UCI Online Retail dataset it was validated against.
+- **Persistence**: `analyses.student3_outputs` (new nullable JSONB column, migration `0008`) and
+  `startups.customer_rfm` (new nullable JSON column, migration `0009`) — both purely additive,
+  chained after the existing `0007_strategic_opportunity` head.
+- **Frontend**: no new standalone "Student 3" card was added (the original commit's
+  `Student3Results.tsx` bolted one on, which would have broken Phase 4's guided-journey design).
+  Instead its content was folded into the existing Founder Decision Studio sections: planning risks
+  merge into the Risk Dashboard (Section 7) alongside `strategic_risks`; the single highest-priority
+  "now"-urgency ranked action folds into the Roadmap's First Week bucket (Section 4), deduped by
+  title; growth-strategy recommendations add a "Growth Strategy" subsection to Market Expansion
+  (Section 6); innovation opportunities and the pitch-deck outline are Advanced-only detail, since
+  they're exploratory rather than this week's action.
 
 ## Brand Assets
 

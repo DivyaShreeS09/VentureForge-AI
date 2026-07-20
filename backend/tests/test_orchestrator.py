@@ -12,12 +12,19 @@ def test_valid_input_completes_successfully():
     assert result["industry_prediction"] is not None
     assert result["funding_assessment"] is not None
     assert result["judge_summary"] is not None
+    assert result["idea_expansion"] is not None
+    assert result["strategic_opportunity"] is not None
+    assert result["customer_segment"] is not None
+    assert result["customer_segment"]["method"] == "unavailable"  # no customer_rfm supplied
     node_order = [t["node"] for t in result["trace"]]
     # Student 2 nodes (success_prediction ... business_model) are additively wired between
     # funding_readiness and evidence_confidence_check — see app.agents.orchestrator.build_graph.
+    # Phase 5 (Student 3) nodes (customer_segmentation ... pitch_deck) are additively wired
+    # between the Student 2 chain and evidence_confidence_check.
     assert node_order == [
         "input_validation",
         "industry_classification",
+        "venture_positioning",
         "funding_readiness",
         "success_prediction",
         "revenue_estimate",
@@ -25,8 +32,17 @@ def test_valid_input_completes_successfully():
         "competitor_analysis",
         "customer_persona",
         "business_model",
+        "customer_segmentation",
+        "recommendation_ranking",
+        "innovation",
+        "risk_assessment",
+        "growth_strategy",
+        "pitch_deck",
         "evidence_confidence_check",
         "judge",
+        "mentor_synthesis",
+        "idea_expansion",
+        "strategic_opportunity",
         "persistence",
         "final_response",
     ]

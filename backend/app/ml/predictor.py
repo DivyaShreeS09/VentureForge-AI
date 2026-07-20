@@ -15,7 +15,6 @@ from pathlib import Path
 
 import joblib
 import numpy as np
-from sklearn.pipeline import Pipeline
 
 from app.core.config import settings
 

@@ -5,14 +5,14 @@ import { ForgeCore } from "./ForgeCore";
 /** Maps real orchestrator node names (see backend/app/agents/nodes.py) to display labels.
  * Never invents stages that didn't run — falls back to the raw node name for anything unmapped. */
 const STAGE_LABELS: Record<string, string> = {
-  input_validation: "Venture Signal Captured",
-  industry_classification: "Industry Intelligence Mapping",
-  funding_readiness: "Funding Readiness Scanning",
-  evidence_confidence_check: "Evidence Integrity Check",
-  judge: "Judge Intelligence Synthesis",
+  input_validation: "Reading Your Idea",
+  industry_classification: "Understanding Your Idea",
+  funding_readiness: "Scoring Your Readiness",
+  evidence_confidence_check: "Checking Your Evidence",
+  judge: "Preparing Your Mentor Report",
 };
 
-const FINAL_STAGE = "Venture Blueprint Forged";
+const FINAL_STAGE = "Your Mentor Report Is Ready";
 const STAGE_NAMES = Object.keys(STAGE_LABELS);
 const TOTAL_STEPS = STAGE_NAMES.length + 1;
 
@@ -98,7 +98,7 @@ export function ForgeSequence({ trace, failed = false }: Props) {
         </li>
         {!trace && !failed && (
           <li className="pt-2 text-xs uppercase tracking-[0.15em] text-ink-muted/70">
-            Elapsed: {elapsedSeconds}s — running the real orchestration pipeline, not a simulated timer
+            Elapsed: {elapsedSeconds}s — this is real analysis running, not a fake progress bar
           </li>
         )}
       </ol>

@@ -33,15 +33,17 @@ VentureForge AI is designed as an AI-powered startup-building ecosystem, not mer
 
 ```mermaid
 journey
-    title From Idea to Investor Blueprint
+    title From Idea to Founder Decision Studio
     section Submit
-      Enter a startup idea: 5: Founder
+      Enter a startup idea + evidence: 5: Founder
     section Analyze
-      Machine Learning + Business Agents run in parallel: 5: System
+      ML models + deterministic agents run: 5: System
+    section Guide
+      Founder Guidance, Idea Expansion, Strategic Opportunities: 5: System
     section Decide
-      Judge Agent synthesizes the evidence: 5: System
-    section Receive
-      Full investor blueprint: 5: Founder
+      Founder Decision Studio: one guided journey: 5: Founder
+    section Correct
+      Correct positioning or revenue assumptions, instantly: 5: Founder
 ```
 
 ### A Walkthrough
@@ -50,30 +52,32 @@ journey
 
 | Stage | What Comes Back |
 |---|---|
-| Industry | HealthTech, with a confidence score |
-| Funding Readiness | A structured score built from your evidence |
-| Success Signal | A calibrated estimate against historical outcomes |
-| Revenue | Conservative / base / optimistic scenarios |
-| Market & Persona | Opportunity signals and likely early adopters |
-| Judge Agent | Strengths, weaknesses, missing evidence, next actions |
+| Startup Snapshot | Industry, target customer, business model, stage, investment readiness — one glance |
+| Founder Decision Panel | One of *Should Build / Proceed Carefully / Needs Validation / High Risk*, with the exact reasoning |
+| 90-Day Roadmap | First Week / First Month / Next 90 Days, each task prioritized and scoped |
+| Market Expansion | Adjacent markets, expansion paths, partnerships, and a growth-channel plan — each with its own reasoning |
+| Risk Dashboard | Strategic and planning risks, sorted by likelihood × impact, each with a mitigation |
+| Investment Readiness | Funding readiness score, historical pattern signal, evidence quality — one unified view |
+| Founder Mentor | A plain-language close ending in the week's three highest-impact actions |
 
 *Illustrative — actual output depends entirely on the idea and evidence you submit.*
 
 ## Product Capabilities
 
-| Machine Learning | Business Intelligence |
+| Machine Learning | Deterministic Business Agents |
 |---|---|
-| **Industry Classification** — identifies the startup's primary sector | **Market Intelligence** — frames the opportunity and its constraints |
-| **Success Prediction** — compares the idea against historical outcomes | **Competitor Analysis** — maps known alternatives and gaps |
-| **Funding Readiness** — evaluates investor preparedness across key dimensions | **Customer Persona** — defines the strongest early-adopter profile |
-| **Revenue Scenarios** — models conservative, base, and optimistic outlooks | **Business Model** — assembles value proposition, channels, and revenue streams |
+| **Industry Classification** — identifies the startup's primary sector | **Market Intelligence, Competitor Analysis, Customer Persona, Business Model** — synthesize only the evidence submitted, never fabricate |
+| **Historical Pattern Signal** — compares the idea against historical company outcomes, framed as a comparison, never a verdict | **Founder Guidance** — every readiness dimension becomes a coached, stage-aware guidance item, never a bare weakness label |
+| **Funding Readiness** — evaluates investor preparedness across key dimensions | **Idea Expansion** — alternative segments, adjacent industries, feature ideas, pricing, pivots — each tiered confirmed / hypothesis / speculative |
+| **Revenue Scenarios** — models conservative, base, and optimistic outlooks | **Strategic Opportunity Discovery** — reasons through *why* an adjacent market fits, not just that it exists |
+| **Customer Segmentation** *(optional, when RFM data is supplied)* | **Growth & Strategy Intelligence** — ranked next actions, innovation opportunities, planning risks, growth channels, and a pitch-deck outline |
 
-| Decision Layer | Product |
+| Founder Decision Studio | Product |
 |---|---|
-| **Explainability** — shows the reasoning behind every prediction | **Live Workflow Progress** — watch the pipeline run in real time |
-| **Confidence Scoring** — flags low-confidence results instead of guessing | **Unified Results View** — one screen for every signal |
-| **Evidence Checks** — surfaces what's missing before the verdict | **Analysis History** — every past run, saved |
-| **Judge Agent** — combines all outputs into one final evaluation | **Structured Blueprint** — organizes the final findings into a reusable startup plan |
+| **Founder Decision Panel** — one clear recommendation, always paired with its reasoning, never a bare label | **Live Workflow Progress** — watch the pipeline run in real time |
+| **Guided 9-section journey** — Snapshot → Why It Matters → Decision → Roadmap → Validation → Market Expansion → Risk Dashboard → Investment Readiness → Founder Mentor | **Founder-Initiated Corrections** — correct industry positioning or revenue assumptions and see every downstream section recompute |
+| **Confidence Tiers** — every opportunity is confirmed-from-evidence, reasonable-hypothesis, or speculative — never blurred | **Analysis History** — every past run, saved |
+| **Advanced: How We Got This** — full technical detail (model evidence, explainability, methodology), collapsed by default | **Structured Blueprint** — organizes the final findings into a reusable startup plan |
 
 ## Why Not Just a Chatbot?
 
@@ -82,7 +86,7 @@ journey
 | Response | One opinion | A structured pipeline |
 | Prediction | Generated on the spot | Trained models, tested on unseen data |
 | Funding view | A narrative | A versioned scoring rubric |
-| Success signal | Rarely offered | A calibrated historical estimate |
+| Success signal | Rarely offered | A trained estimate, not a guess |
 | Missing info | A confident guess | Reported as a gap |
 | Output | Advice | A reusable blueprint |
 
@@ -97,7 +101,7 @@ flowchart TD
 
     subgraph ML[" "]
         direction LR
-        ML1[Industry] --> ML2[Funding] --> ML3[Success] --> ML4[Revenue]
+        ML1[Industry] --> ML2[Positioning] --> ML3[Funding] --> ML4[Success] --> ML5[Revenue]
     end
 
     subgraph BI[" "]
@@ -108,20 +112,31 @@ flowchart TD
     MLL --> ML --> JUDGE
     BIL --> BI --> JUDGE
 
-    JUDGE{{Judge Agent}} --> BLUEPRINT([Investor Blueprint])
-    BLUEPRINT --> DASH[Dashboard]
+    JUDGE{{Judge Agent}} --> MENTOR{{Mentor Synthesis}}
+    MENTOR --> GROWTH[["Growth & Strategy Intelligence"]]
+    MENTOR --> EXPAND[Idea Expansion] --> STRAT[Strategic Opportunity Discovery]
+    GROWTH --> STUDIO([Founder Decision Studio])
+    STRAT --> STUDIO
 
     style JUDGE fill:#1a1a2e,stroke:#ec4899,color:#fff
-    style BLUEPRINT fill:#1a1a2e,stroke:#22c55e,color:#fff
+    style MENTOR fill:#1a1a2e,stroke:#ec4899,color:#fff
+    style STUDIO fill:#1a1a2e,stroke:#22c55e,color:#fff
 ```
 
 | Module | Role in the Workflow |
 |---|---|
 | **Industry Classification** | Determines the startup's domain before the remaining analysis begins. |
+| **Venture Positioning** | Resolves a founder-facing identity from a controlled taxonomy — distinct from, and more specific than, the raw industry classification above. |
 | **Funding Readiness** | Evaluates whether the submitted idea contains the evidence investors expect. |
-| **Success Prediction** | Compares the startup's characteristics with historical outcome patterns. |
+| **Historical Pattern Signal** | Compares the startup's characteristics with historical outcome patterns — a comparison, never a verdict on this specific idea. |
 | **Revenue Estimation** | Produces conservative, base, and optimistic revenue scenarios. |
+| **Market Intelligence, Competitor Analysis, Customer Persona, Business Model** | Deterministic business-intelligence agents synthesizing the founder's submitted evidence. |
 | **Judge Agent** | Combines all model and agent outputs into one final evaluation, with an optional Gemini narrative layered on top — never replacing it. |
+| **Mentor Synthesis** | Reconciles the Judge Agent's output and every business-intelligence agent's output into one coherent, founder-facing result — Founder Guidance items, verdict, validation plan, and 30/60/90 roadmap. |
+| **Idea Expansion** | Alternative customer segments, adjacent industries, feature ideas, pricing models, and pivots — every suggestion tiered confirmed / hypothesis / speculative. |
+| **Strategic Opportunity Discovery** | Reasons through *why* an adjacent market or future form fits — never a bare list — plus strategic risks and founder decision support per opportunity. |
+| **Growth & Strategy Intelligence** | Customer segmentation (when RFM data is supplied), ranked next actions, innovation opportunities, planning risks, growth-channel recommendations, and a pitch-deck outline. |
+| **Founder Decision Studio** | The final presentation layer — one guided 9-section founder journey (not a stack of independent report cards), with all technical detail collapsed into an Advanced section. |
 
 ## Machine Learning
 
@@ -170,6 +185,10 @@ flowchart TD
 | **Explainable AI** | Feature Importance · Term Contributions · Confidence Calibration |
 | **Data Processing** | pandas · NumPy · scikit-learn |
 | **Testing** | pytest · Vitest · React Testing Library |
+
+No caching layer, message queue, or Redis is part of the active runtime — PostgreSQL is the only
+datastore. `docker-compose.yml` provisions PostgreSQL alone (for anyone who doesn't already have
+it installed natively); there is no Redis client, queue, or cache anywhere in this codebase.
 
 ## Project Structure
 
@@ -255,13 +274,17 @@ Stuck on setup? See [`docs/SETUP.md`](docs/SETUP.md).
 | `GEMINI_API_KEY` | Optional narrative layer |
 | `VITE_API_BASE_URL` | Frontend → backend API URL |
 
+Full reference (every variable, every file it lives in): [`docs/SETUP.md`](docs/SETUP.md#full-environment-reference).
+
+**Before deploying anywhere beyond local development:** this project has no authentication,
+sessions, or authorization layer by design — read [`docs/SECURITY.md`](docs/SECURITY.md) first.
+
 ## The Future of VentureForge
 
 ```mermaid
 timeline
     title Where VentureForge AI Is Headed
-    Now : Industry · Funding · Success · Revenue : Market · Competitor · Persona · Business Model : Judge Agent
-    Next : Customer Segmentation : Innovation Scoring : Risk & Growth Agents : Pitch Deck Generator : Founder Dashboard
+    Now : Industry · Positioning · Funding · Historical Pattern Signal · Revenue : Market · Competitor · Persona · Business Model : Founder Guidance · Idea Expansion · Strategic Opportunities : Growth & Strategy Intelligence · Founder Decision Studio
     Beyond : Investor Matching : Grant Discovery : Patent Search : AI Co-Founder : Incubator Integration
 ```
 

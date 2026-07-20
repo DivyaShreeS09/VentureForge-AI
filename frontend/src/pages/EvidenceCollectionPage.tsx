@@ -7,8 +7,13 @@ import { createStartup } from "../services/api";
 import type { FundingAnswers } from "../types/api";
 
 /** Mirrors the 8 real dimensions in backend/app/ml/funding_readiness.py exactly — labels, help
- * text, and 0/1/2 option text are the same rubric the backend scores, just presented as an
- * expandable category per dimension instead of a bare select (see the reference layout). */
+ * text, and evidence-quality option text are the same rubric the backend scores, just presented
+ * as an expandable category per dimension instead of a bare select (see the reference layout).
+ * Each dimension now exposes all four explicit evidence states (see EvidenceState in
+ * backend/app/ml/funding_readiness.py): the three `evidenceOptions` below all resolve to either
+ * `confirmed_negative` (no evidence) or `confirmed_positive` (some/strong evidence, severity 1/2)
+ * — "Not sure yet" and "Not applicable" are separate, always-available choices, never inferred
+ * from silence. */
 const DIMENSIONS: { key: keyof FundingAnswers; label: string; tip: string; options: string[] }[] = [
   {
     key: "market_size_evidence",
@@ -36,7 +41,7 @@ const DIMENSIONS: { key: keyof FundingAnswers; label: string; tip: string; optio
   },
   {
     key: "revenue_model_clarity",
-    label: "Business Model",
+    label: "Pricing & Revenue",
     tip: "Pricing and unit economics, not just \"we'll figure it out.\"",
     options: ["Not defined", "Roughly defined", "Clear pricing and unit economics"],
   },
@@ -54,7 +59,7 @@ const DIMENSIONS: { key: keyof FundingAnswers; label: string; tip: string; optio
   },
   {
     key: "competitive_differentiation",
-    label: "Risks & Challenges",
+    label: "What Makes You Different",
     tip: "How this differs from the 2-3 closest alternatives — the clearest lens on competitive risk.",
     options: ["No differentiation stated", "Some differentiation", "Clear, defensible differentiation"],
   },
@@ -118,12 +123,23 @@ export function EvidenceCollectionPage() {
     (marketEvidence.known_competitors ?? []).join(", "),
   );
 
+  // Mirrors backend/app/ml/funding_readiness.py's weight-renormalization: a dimension marked
+  // "not_applicable" is excluded from both the numerator and the denominator, so opting it out
+  // never lowers the achievable strength percentage.
   const strengthPercent = useMemo(() => {
-    const total = DIMENSIONS.reduce((sum, d) => sum + (fundingAnswers[d.key] ?? 0), 0);
-    return Math.round((total / (DIMENSIONS.length * MAX_PER_DIMENSION)) * 100);
+    const applicable = DIMENSIONS.filter((d) => fundingAnswers[d.key]?.state !== "not_applicable");
+    if (applicable.length === 0) return 0;
+    const total = applicable.reduce((sum, d) => {
+      const entry = fundingAnswers[d.key];
+      return sum + (entry?.state === "confirmed_positive" ? (entry.severity ?? 1) : 0);
+    }, 0);
+    return Math.round((total / (applicable.length * MAX_PER_DIMENSION)) * 100);
   }, [fundingAnswers]);
 
-  const answeredKeys = DIMENSIONS.filter((d) => fundingAnswers[d.key] !== null && fundingAnswers[d.key] !== undefined);
+  const answeredKeys = DIMENSIONS.filter((d) => {
+    const state = fundingAnswers[d.key]?.state;
+    return state === "confirmed_positive" || state === "confirmed_negative" || state === "not_applicable";
+  });
 
   async function handleSubmit() {
     if (!idea.name.trim() || buildDescription().length < 10) {
@@ -154,15 +170,27 @@ export function EvidenceCollectionPage() {
       <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">Evidence Collection</p>
       <h1 className="mt-2 text-display text-3xl">Strengthen your analysis with evidence</h1>
       <p className="mt-2 max-w-xl text-ink-secondary">
-        Help our AI agents analyze your venture more accurately. Each dimension left unanswered
-        scores 0 — no favorable assumption is made for absent data.
+        Help our AI agents analyze your venture more accurately. "Not sure yet" is never treated
+        as a weakness — it becomes a starting hypothesis and a concrete validation task instead.
+        Only an explicit "no evidence yet" answer is scored as a real weakness.
       </p>
 
       <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_18rem]">
         <div className="space-y-3">
           {DIMENSIONS.map((d) => {
-            const value = fundingAnswers[d.key] ?? null;
+            const entry = fundingAnswers[d.key];
+            const state = entry?.state ?? "not_sure_yet";
+            const severity = entry?.severity ?? 0;
             const isOpen = expanded === d.key;
+            const barWidth = state === "confirmed_positive" ? (severity / MAX_PER_DIMENSION) * 100 : 0;
+            const statusLabel =
+              state === "confirmed_positive"
+                ? `${severity}/${MAX_PER_DIMENSION}`
+                : state === "confirmed_negative"
+                  ? "None yet"
+                  : state === "not_applicable"
+                    ? "N/A"
+                    : "Not sure yet";
             return (
               <div key={d.key} className="panel hover-lift overflow-hidden">
                 <button
@@ -176,12 +204,18 @@ export function EvidenceCollectionPage() {
                     <div className="h-1.5 w-24 overflow-hidden rounded-full bg-white/5">
                       <div
                         className={`h-full rounded-full transition-[width] duration-500 ${
-                          value === 2 ? "bg-gold-400" : value !== null ? "bg-signal-500" : "bg-white/10"
+                          state === "confirmed_positive" && severity === 2
+                            ? "bg-gold-400"
+                            : state === "confirmed_positive"
+                              ? "bg-signal-500"
+                              : state === "confirmed_negative"
+                                ? "bg-danger-500/60"
+                                : "bg-white/10"
                         }`}
-                        style={{ width: `${((value ?? 0) / MAX_PER_DIMENSION) * 100}%` }}
+                        style={{ width: `${barWidth}%` }}
                       />
                     </div>
-                    <span className="w-10 text-right text-xs text-ink-muted">{value ?? 0}/{MAX_PER_DIMENSION}</span>
+                    <span className="w-20 text-right text-xs text-ink-muted">{statusLabel}</span>
                   </div>
                 </button>
                 {isOpen && (
@@ -193,22 +227,56 @@ export function EvidenceCollectionPage() {
                   >
                     <p className="text-xs text-ink-muted">{d.tip}</p>
                     <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                      {d.options.map((opt, idx) => (
-                        <button
-                          key={opt}
-                          type="button"
-                          onClick={() => updateFunding(d.key, idx)}
-                          className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
-                            value === idx
-                              ? idx === 2
-                                ? "border-gold-400/60 bg-gold-500/10 text-gold-300"
-                                : "border-signal-400/60 bg-signal-500/10 text-signal-200"
-                              : "border-white/10 bg-white/[0.02] text-ink-secondary hover:border-white/25"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
+                      {d.options.map((opt, idx) => {
+                        const optionIsActive = state === "confirmed_positive" ? severity === idx : state === "confirmed_negative" && idx === 0;
+                        return (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() =>
+                              updateFunding(
+                                d.key,
+                                idx === 0
+                                  ? { state: "confirmed_negative", severity: null }
+                                  : { state: "confirmed_positive", severity: idx as 1 | 2 },
+                              )
+                            }
+                            className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                              optionIsActive
+                                ? idx === 2
+                                  ? "border-gold-400/60 bg-gold-500/10 text-gold-300"
+                                  : "border-signal-400/60 bg-signal-500/10 text-signal-200"
+                                : "border-white/10 bg-white/[0.02] text-ink-secondary hover:border-white/25"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <button
+                        type="button"
+                        onClick={() => updateFunding(d.key, { state: "not_sure_yet", severity: null })}
+                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                          state === "not_sure_yet"
+                            ? "border-current-400/60 bg-current-500/10 text-current-200"
+                            : "border-white/10 bg-white/[0.02] text-ink-secondary hover:border-white/25"
+                        }`}
+                      >
+                        Not sure yet — treat as an open question, not a weakness
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => updateFunding(d.key, { state: "not_applicable", severity: null })}
+                        className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+                          state === "not_applicable"
+                            ? "border-white/40 bg-white/10 text-ink-primary"
+                            : "border-white/10 bg-white/[0.02] text-ink-secondary hover:border-white/25"
+                        }`}
+                      >
+                        Not applicable to this venture
+                      </button>
                     </div>
                   </motion.div>
                 )}

@@ -35,6 +35,8 @@ if str(_REPO_ROOT) not in sys.path:
 
 from ml.src.features.success_features import engineer_features  # noqa: E402
 
+from app.ml.local_success_explainer import explain_local_prediction  # noqa: E402
+
 MODEL_NAME = "success_predictor"
 MODEL_VERSION = "v1"
 
@@ -113,27 +115,23 @@ def predict_success(
     if not country_code:
         missing_features.append("country_code")
 
-    row = pd.DataFrame(
-        [
-            {
-                "funding_total_usd": total_funding_usd,
-                "funding_rounds": funding_rounds,
-                "company_age_years": company_age_years,
-                "funding_span_years": None,
-                # time_to_first_funding_years / funding_recency_years (v2 features — see
-                # ml/src/features/success_features.py) require first_funding_at/last_funding_at
-                # dates that the startup submission form does not collect. Left as missing (None)
-                # and imputed by the trained pipeline like any other absent numeric feature,
-                # rather than fabricating a date this endpoint was never given.
-                "time_to_first_funding_years": None,
-                "funding_recency_years": None,
-                "primary_category": (industry or "unknown").lower(),
-                "category_count": 1,
-                "country_code": (country_code or "unknown").lower(),
-            }
-        ]
-    )
-    row = engineer_features(row)
+    base_row = {
+        "funding_total_usd": total_funding_usd,
+        "funding_rounds": funding_rounds,
+        "company_age_years": company_age_years,
+        "funding_span_years": None,
+        # time_to_first_funding_years / funding_recency_years (v2 features — see
+        # ml/src/features/success_features.py) require first_funding_at/last_funding_at
+        # dates that the startup submission form does not collect. Left as missing (None)
+        # and imputed by the trained pipeline like any other absent numeric feature,
+        # rather than fabricating a date this endpoint was never given.
+        "time_to_first_funding_years": None,
+        "funding_recency_years": None,
+        "primary_category": (industry or "unknown").lower(),
+        "category_count": 1,
+        "country_code": (country_code or "unknown").lower(),
+    }
+    row = engineer_features(pd.DataFrame([base_row]))
 
     proba = float(pipeline.predict_proba(row)[0][1])
 
@@ -170,7 +168,46 @@ def predict_success(
         item["feature"] for item in metadata.get("permutation_importance", [])[:3]
     ]
 
+    local_explanation = explain_local_prediction(pipeline, base_row, row, engineer_features, proba)
+
+    # Founder-facing band (Phase 1 correction): never render "success"/"failure" as a verdict on
+    # the idea itself — this model was trained exclusively on companies that had already raised
+    # funding (see ml/DATASETS.md), so a binary label reads as a false verdict on a raw idea. This
+    # band is the only historical-pattern-signal field the default founder view may show;
+    # `predicted_label`/`success_probability` remain below only for backward compatibility and the
+    # Advanced/technical view. See app.agents.judge / app.agents.mentor_synthesis: an
+    # "insufficient_input_reliability" signal must never become a biggest_risk or top action, and
+    # must never lower the founder-facing readiness presentation.
+    if is_uncertain:
+        pattern_signal_label = "insufficient_input_reliability"
+    elif proba >= 0.6:
+        pattern_signal_label = "stronger_comparison"
+    elif proba >= 0.4:
+        pattern_signal_label = "mixed_comparison"
+    else:
+        pattern_signal_label = "limited_comparison"
+
+    pattern_signal_display = {
+        "insufficient_input_reliability": "Insufficient input reliability",
+        "stronger_comparison": "Stronger comparison",
+        "mixed_comparison": "Mixed comparison",
+        "limited_comparison": "Limited comparison",
+    }[pattern_signal_label]
+
+    pattern_signal_sentence = (
+        "Not enough information was supplied to compare this idea reliably against historical "
+        "company patterns yet."
+        if pattern_signal_label == "insufficient_input_reliability"
+        else (
+            f"Compared to historical company outcome patterns, this idea shows a {pattern_signal_display.lower()} "
+            "— this describes how this input compares to past companies, not whether this idea will succeed."
+        )
+    )
+
     return {
+        "pattern_signal_label": pattern_signal_label,
+        "pattern_signal_display": pattern_signal_display,
+        "pattern_signal_sentence": pattern_signal_sentence,
         "predicted_label": predicted_label,
         "success_probability": round(proba, 4),
         "model_version": metadata["version"],
@@ -186,6 +223,10 @@ def predict_success(
             "(permutation importance on held-out test data), not a per-prediction explanation for "
             "this specific input."
         ),
+        # Phase 0.5: a genuinely local (per-input) explanation — see
+        # app.ml.local_success_explainer. Always distinct from top_global_features above; never
+        # presented as global importance and vice versa.
+        "local_explanation": local_explanation,
         # v2 additive fields — never replace any field above, only extend the response shape.
         "operating_threshold": operating_threshold,
         "recommended_threshold_info": recommended_threshold_info,

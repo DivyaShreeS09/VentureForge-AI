@@ -156,6 +156,40 @@ def test_subgroup_metrics_summary_is_present_and_json_serializable():
     json.dumps(result)  # must not raise — additive fields must not break serialization
 
 
+# --- Phase 1 correction: Historical Pattern Signal founder-facing band (never "success"/"failure") --
+
+
+def test_pattern_signal_label_is_one_of_the_four_allowed_bands():
+    result = success_predictor.predict_success(
+        total_funding_usd=1_000_000, funding_rounds=1, founded_year=2021, country_code="usa", industry="saas"
+    )
+    assert result["pattern_signal_label"] in (
+        "insufficient_input_reliability", "stronger_comparison", "mixed_comparison", "limited_comparison",
+    )
+    assert result["pattern_signal_display"] in (
+        "Insufficient input reliability", "Stronger comparison", "Mixed comparison", "Limited comparison",
+    )
+    assert "success" not in result["pattern_signal_display"].lower()
+    assert "failure" not in result["pattern_signal_display"].lower()
+
+
+def test_uncertain_prediction_is_always_insufficient_input_reliability():
+    result = success_predictor.predict_success(
+        total_funding_usd=None, funding_rounds=None, founded_year=None, country_code=None, industry=None,
+    )
+    assert result["is_uncertain"] is True
+    assert result["pattern_signal_label"] == "insufficient_input_reliability"
+
+
+def test_pattern_signal_sentence_never_predicts_success_or_failure():
+    result = success_predictor.predict_success(
+        total_funding_usd=1_000_000, funding_rounds=1, founded_year=2021, country_code="usa", industry="saas"
+    )
+    sentence = result["pattern_signal_sentence"].lower()
+    assert "will succeed" not in sentence
+    assert "will fail" not in sentence
+
+
 def test_response_shape_is_additive_only_existing_fields_unchanged():
     """v2 must only ADD fields to the response — every field the original API contract promised
     must still be present with the same meaning."""

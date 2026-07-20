@@ -1,6 +1,16 @@
 {
   "datasets": [
     {
+      "name": "uci-online-retail",
+      "source": "uci_machine_learning_repository",
+      "url": "https://archive.ics.uci.edu/dataset/352/online+retail",
+      "path": "ml/data/raw/online_retail.xlsx",
+      "task": "customer_segmentation_research",
+      "status": "approved_for_offline_evaluation_only",
+      "license": "CC BY 4.0",
+      "notes": "541,909 UK online-retail transactions (2010-12-01 to 2011-12-09); schema InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country. Used only to compare RFM clustering methods offline (Phase 5 / Student 3). Raw data and artifacts are not committed. Its customer-level RFM fields are not collected by VentureForge by default, so it is not used to fabricate runtime assignments."
+    },
+    {
       "name": "startup-industry-bootstrap",
       "source": "generated",
       "kaggle_id": null,

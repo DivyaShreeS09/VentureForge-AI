@@ -20,6 +20,8 @@ node_modules/
 frontend/node_modules/
 frontend/dist/
 frontend/coverage/
+dist/
+build/
 *.tsbuildinfo
 
 # ML artifacts & data (never committed — see ml/README.md)
@@ -44,9 +46,18 @@ coverage/
 htmlcov/
 playwright-report/
 test-results/
+.coverage
+.coverage.*
 
 # Logs
 *.log
+
+# Temporary / backup files
+*.tmp
+*.bak
+*.sqlite
+*.sqlite3
+*.db
 
 # OS / editor
 .DS_Store

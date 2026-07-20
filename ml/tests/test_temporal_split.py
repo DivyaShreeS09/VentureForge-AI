@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from ml.src.training.train_success_classifier import _temporal_split_diagnostic
 

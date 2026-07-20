@@ -69,7 +69,7 @@ export function AnalysisResultPage() {
         <div className="mt-8">
           {loading && <LoadingBanner message="Loading analysis..." />}
           {error && <ErrorBanner message={error} />}
-          {data && <AnalysisResult analysis={data} />}
+          {data && <AnalysisResult analysis={data} startupName={startupName} />}
         </div>
       </main>
     </div>

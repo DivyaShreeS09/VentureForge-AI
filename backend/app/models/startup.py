@@ -23,5 +23,9 @@ class Startup(Base):
     company_metrics: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
     revenue_assumptions: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
     market_evidence: Mapped[dict] = mapped_column(JSONVariant, nullable=False, default=dict)
+    # Phase 5: optional customer-level RFM input for the trained segmentation artifact — see
+    # app.ml.segmentation. Null (not fabricated) when the founder supplied no transaction data;
+    # app.agents.student3.customer_segment then reports segmentation as unavailable.
+    customer_rfm: Mapped[dict | None] = mapped_column(JSONVariant, nullable=True)
     created_at: Mapped[datetime]
     updated_at: Mapped[datetime]

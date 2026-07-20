@@ -19,11 +19,13 @@ def test_analyze_success_returns_full_result(client):
     assert body["industry_prediction"]["predicted_industry"]
     assert body["funding_assessment"]["overall_score"] >= 0
     assert body["judge_summary"]["overall_assessment"]
-    # Persisted trace covers every node up through "judge" — persistence saves the state as of
-    # its own invocation, so its own step and the trailing final_response step aren't included.
-    # 11 nodes: input_validation, industry_classification, funding_readiness, the 6 additive
-    # Student 2 nodes, evidence_confidence_check, judge.
-    assert isinstance(body["workflow_trace"], list) and len(body["workflow_trace"]) == 11
+    assert body["student3_outputs"]["customer_segment"]["method"] == "unavailable"
+    # Persisted trace covers every node up through "strategic_opportunity" — persistence saves
+    # the state as of its own invocation, so its own step and the trailing final_response step
+    # aren't included. 21 nodes: input_validation, industry_classification, venture_positioning,
+    # funding_readiness, the 6 additive Student 2 nodes, the 6 additive Phase 5 (Student 3) nodes,
+    # evidence_confidence_check, judge, mentor_synthesis, idea_expansion, strategic_opportunity.
+    assert isinstance(body["workflow_trace"], list) and len(body["workflow_trace"]) == 21
 
 
 def test_analyze_unknown_startup_returns_404(client):

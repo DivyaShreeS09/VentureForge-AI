@@ -1,14 +1,21 @@
-"""Judge Agent: deterministic synthesis of the industry and funding-readiness outputs.
+"""Judge Agent: deterministic synthesis of the industry, funding-readiness, and venture-
+positioning outputs.
 
 This never calls an external LLM and never invents facts. It only reformats and reconciles what
-the industry classifier (a model prediction) and the funding-readiness rubric (a deterministic
-score derived from user-provided answers) already produced. An optional narrative enhancement
-(Gemini, via backend/app/ai/) is layered on top by the orchestrator after this function returns —
-see app/agents/orchestrator.py's `_try_llm_narrative` — never inside this module, so `synthesize`
-itself has no network dependency and its output is identical whether or not an LLM is configured.
+the industry classifier (a model prediction), the funding-readiness rubric (a deterministic score
+derived from user-provided answers), and the venture-positioning resolution (see
+app.agents.venture_positioning.resolve_venture_positioning — the sole final authority for
+`venture_positioning`, computed upstream in app.agents.nodes.venture_positioning_node) already
+produced. An optional narrative enhancement (Gemini, via backend/app/ai/) is layered on top by the
+orchestrator after this function returns — see app/agents/orchestrator.py's `_try_llm_narrative` —
+never inside this module, so `synthesize` itself has no network dependency and its output is
+identical whether or not an LLM is configured.
 """
 
 from __future__ import annotations
+
+from app.agents.founder_guidance import build_founder_guidance_items
+from app.agents.hypothesis_engine import build_hypotheses_for_gaps
 
 _ACTION_BY_DIMENSION: dict[str, str] = {
     "problem_clarity": "Write a one-sentence problem statement naming who has the problem and what it costs them.",
@@ -41,6 +48,16 @@ def synthesize(
     competitor_analysis: dict | None = None,
     customer_personas: dict | None = None,
     business_model: dict | None = None,
+    model_category: dict | None = None,
+    venture_positioning: dict | None = None,
+    taxonomy_candidates: list[dict] | None = None,
+    gemini_structured_recommendation: dict | None = None,
+    gemini_rationale: str | None = None,
+    positioning_correction_rationale: str | None = None,
+    market_evidence: dict | None = None,
+    customer_segment: dict | None = None,
+    ranked_actions: list[dict] | None = None,
+    risks: list[dict] | None = None,
 ) -> dict:
     """Produce the final Judge summary. Raises ValueError if required fields are missing.
 
@@ -49,6 +66,11 @@ def synthesize(
     `source_attribution` and never averaged or blended with the industry/funding scores — a
     success-prediction probability and a funding-readiness score measure different things and
     combining them into one number would misrepresent both.
+
+    `strengths`/`weaknesses`/`missing_evidence` below are kept for backward compatibility only
+    (deprecated, technical-only fields) — see `founder_guidance_items` for the structured,
+    coached replacement every new consumer (app.agents.mentor_synthesis, the frontend) must use
+    instead. Nothing in this module or downstream parses the raw `weaknesses` strings.
     """
     if funding_assessment is None or "overall_score" not in funding_assessment:
         raise ValueError("funding_assessment is required and must include overall_score")
@@ -56,13 +78,32 @@ def synthesize(
     breakdown = funding_assessment.get("breakdown", [])
     missing = set(funding_assessment.get("missing_evidence", []))
 
+    # `state` is present on every breakdown item produced by the current
+    # app.ml.funding_readiness.assess_funding_readiness. Fall back to the legacy raw_score-only
+    # shape (raw_score == 0 and not in `missing` implied confirmed_negative) for any caller that
+    # hand-built a funding_assessment fixture without the `state` field.
+    def _state(item: dict) -> str | None:
+        state = item.get("state")
+        if state is not None:
+            return state
+        if item.get("raw_score") == 2:
+            return "confirmed_positive"
+        if item.get("raw_score") == 0:
+            return "confirmed_negative" if item["dimension"] not in missing else "not_sure_yet"
+        return "confirmed_positive"
+
     strengths = [
-        f"{item['label']}: {item['scale_description']}" for item in breakdown if item["raw_score"] == 2
+        f"{item['label']}: {item['scale_description']}"
+        for item in breakdown
+        if _state(item) == "confirmed_positive" and item["raw_score"] == 2
     ]
+    # Only a `confirmed_negative` — the founder's own affirmed absence of evidence — may ever
+    # become a weakness. `not_sure_yet` is never a weakness; it is routed to the Hypothesis Engine
+    # below instead.
     weaknesses = [
         f"{item['label']}: {item['scale_description']}"
         for item in breakdown
-        if item["raw_score"] == 0 and item["dimension"] not in missing
+        if _state(item) == "confirmed_negative"
     ]
     missing_evidence = [
         next(item["label"] for item in breakdown if item["dimension"] == dim) for dim in missing
@@ -70,8 +111,10 @@ def synthesize(
     next_actions = [
         _ACTION_BY_DIMENSION[item["dimension"]]
         for item in breakdown
-        if item["raw_score"] in (0,) and item["dimension"] in _ACTION_BY_DIMENSION
+        if _state(item) in ("confirmed_negative", "not_sure_yet") and item["dimension"] in _ACTION_BY_DIMENSION
     ]
+    suggested_possibilities = build_hypotheses_for_gaps(sorted(missing))
+    founder_guidance_items = build_founder_guidance_items(funding_assessment, market_evidence)
 
     confidence_level = _confidence_level(industry_prediction, funding_assessment, evidence_check)
 
@@ -86,16 +129,15 @@ def synthesize(
             f"version {success_prediction.get('model_version', 'unknown')}) — historical pattern "
             "estimate, not a guarantee"
         )
-        if success_prediction.get("is_uncertain"):
-            weaknesses.append(
-                f"Success prediction is flagged uncertain ({success_prediction.get('success_probability')} "
-                "probability, near chance or built on incomplete features)."
-            )
+        # A heavily-imputed or near-chance historical pattern signal must never read as a
+        # founder-facing risk (see app.ml.success_predictor's founder-facing band label) — it used
+        # to be appended to `weaknesses` here; deliberately removed so it can never surface as a
+        # biggest_risk/top-action item downstream (app.agents.mentor_synthesis).
     if revenue_estimate is not None:
         source_attribution["revenue_estimate"] = (
-            "deterministic scenario calculator from user-supplied assumptions — not a trained model"
-            if revenue_estimate.get("available")
-            else "unavailable — no revenue assumptions were submitted"
+            "deterministic scenario calculator — not a trained model; per-field "
+            f"assumption_source ({revenue_estimate.get('default_basis', 'unknown')} where the "
+            "founder supplied no value) is in revenue_estimate.assumptions"
         )
     if market_intelligence is not None:
         source_attribution["market_intelligence"] = (
@@ -115,6 +157,22 @@ def synthesize(
         source_attribution["business_model"] = "agent synthesis of user-submitted evidence and deterministic rubric"
         missing_evidence.extend(
             f"Business model: {gap}" for gap in business_model.get("evidence_gaps", [])
+        )
+    if customer_segment is not None:
+        source_attribution["customer_segment"] = (
+            "deterministic segment fallback from model/rubric evidence, or a trained clustering "
+            "artifact when customer RFM input was supplied (Phase 5 / Student 3)"
+        )
+    if ranked_actions is not None:
+        source_attribution["ranked_actions"] = "versioned deterministic ranking rules (Phase 5 / Student 3)"
+    if risks is not None:
+        source_attribution["risks"] = "fixed planning-risk templates grounded in readiness evidence (Phase 5 / Student 3)"
+    if venture_positioning is not None:
+        source_attribution["venture_positioning"] = (
+            f"deterministic controlled-taxonomy resolution (resolution_source="
+            f"{venture_positioning.get('resolution_source', 'unknown')}); Gemini's structured "
+            "recommendation, if invoked, is advisory input only — the Judge Agent's rule set is "
+            "the sole final authority, never overridden by Gemini's rationale text"
         )
 
     if industry_prediction is not None:
@@ -148,4 +206,23 @@ def synthesize(
         "next_actions": next_actions,
         "confidence_level": confidence_level,
         "source_attribution": source_attribution,
+        "suggested_possibilities": suggested_possibilities,
+        "founder_guidance_items": founder_guidance_items,
+        # Two distinct category outputs (see app.agents.venture_positioning): `model_category` is
+        # the untouched trained-model output, relabeled as technical evidence; `venture_positioning`
+        # is the founder-facing identity the Judge Agent's deterministic rule set already decided
+        # upstream (app.agents.venture_positioning.resolve_venture_positioning) — never
+        # re-decided or overridden here. `gemini_rationale` is carried through as display-only
+        # text; nothing in this function (or in resolve_venture_positioning) ever parses it.
+        "model_category": model_category,
+        "venture_positioning": venture_positioning,
+        "taxonomy_candidates": taxonomy_candidates or [],
+        "gemini_structured_recommendation": gemini_structured_recommendation,
+        "gemini_rationale": gemini_rationale,
+        "positioning_correction_rationale": positioning_correction_rationale,
+        # Phase 5 (Student 3) passthrough — never blended with the industry/funding scores above;
+        # see app.agents.student3 for how each is produced.
+        "customer_segment": customer_segment,
+        "ranked_actions": ranked_actions or [],
+        "risks": risks or [],
     }

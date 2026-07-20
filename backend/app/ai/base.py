@@ -9,7 +9,20 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from app.ai.schemas import NarrativeContext, NarrativeEnhancement
+from app.ai.schemas import (
+    CompetitorPossibilitiesContext,
+    GeminiCompetitorPossibilities,
+    GeminiIdeaExpansion,
+    GeminiMentorInterpretation,
+    GeminiPositioningRecommendation,
+    GeminiStrategicOpportunity,
+    IdeaExpansionContext,
+    MentorContext,
+    NarrativeContext,
+    NarrativeEnhancement,
+    PositioningReviewContext,
+    StrategicOpportunityContext,
+)
 
 
 class LLMUnavailable(RuntimeError):
@@ -21,4 +34,40 @@ class LLMUnavailable(RuntimeError):
 class LLMProvider(Protocol):
     def generate_narrative(self, context: NarrativeContext) -> NarrativeEnhancement:
         """Return a validated narrative enhancement, or raise LLMUnavailable."""
+        ...
+
+    def review_positioning(self, context: PositioningReviewContext) -> GeminiPositioningRecommendation:
+        """Return a validated, schema-constrained positioning recommendation, or raise
+        LLMUnavailable. Purely advisory — see app.agents.venture_positioning for how the Judge
+        Agent (the sole final authority) weighs this."""
+        ...
+
+    def suggest_competitor_possibilities(
+        self, context: CompetitorPossibilitiesContext
+    ) -> GeminiCompetitorPossibilities:
+        """Return a validated, sanitized list of category-level competitor possibilities, or raise
+        LLMUnavailable. Never a named company — see app.agents.competitor_agent."""
+        ...
+
+    def generate_mentor_interpretation(self, context: MentorContext) -> GeminiMentorInterpretation:
+        """Return a validated, narrative-only mentor rephrasing, or raise LLMUnavailable. Purely
+        advisory — see app.agents.mentor_reviewer, which merges only a narrow, safety-checked
+        subset of this onto the deterministic mentor baseline; every Judge-owned/structural field
+        always comes from that baseline regardless of this response."""
+        ...
+
+    def generate_idea_expansion(self, context: IdeaExpansionContext) -> GeminiIdeaExpansion:
+        """Return a validated, schema-bounded set of additional Idea Expansion possibilities, or
+        raise LLMUnavailable. Purely additive and advisory — see app.agents.idea_expansion_reviewer,
+        which appends only safety-checked items onto the deterministic Idea Expansion baseline;
+        nothing here can replace or alter venture positioning, funding readiness, or any other
+        Judge-owned field."""
+        ...
+
+    def generate_strategic_opportunity(self, context: StrategicOpportunityContext) -> GeminiStrategicOpportunity:
+        """Return a validated, schema-bounded set of additional adjacent-market/future-expansion
+        reasoning and strategic risks, or raise LLMUnavailable. Purely additive and advisory — see
+        app.agents.strategic_opportunity_reviewer, which appends only safety-checked items onto the
+        deterministic Strategic Opportunity baseline; `primary_opportunity` and every Judge-owned
+        field remain entirely deterministic regardless of this response."""
         ...

@@ -2,7 +2,6 @@
 industry classifier is unavailable, and must reject malformed requests with a clear 4xx.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 

@@ -32,11 +32,11 @@ export function AnalysisStatusPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col justify-center px-6 py-12 sm:px-10">
-        <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">04 · Forge Sequence</p>
-        <h1 className="mt-2 text-display text-3xl sm:text-4xl">VentureForge Core Activated</h1>
+        <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">Step 4 · Building Your Mentor Report</p>
+        <h1 className="mt-2 text-display text-3xl sm:text-4xl">Your Mentor Is Reviewing Your Idea</h1>
         <p className="mt-3 max-w-xl text-ink-secondary">
-          Running the real orchestration pipeline — classification, readiness assessment, and Judge
-          Agent synthesis. This is not a simulated timer.
+          Reading your idea, checking your evidence, and preparing your personalized mentor
+          report. This is real analysis running, not a simulated timer.
         </p>
 
         <div className="mt-12">

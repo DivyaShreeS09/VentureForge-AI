@@ -1,5 +1,11 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { CompanyMetrics, FundingAnswers, MarketEvidence, RevenueAssumptions } from "../types/api";
+import type {
+  CompanyMetrics,
+  DimensionEvidence,
+  FundingAnswers,
+  MarketEvidence,
+  RevenueAssumptions,
+} from "../types/api";
 
 /** The backend only accepts `name` + `description` + `funding_answers` (see
  * backend/app/schemas/startup.py) — there is no separate industry/target-customer/stage field.
@@ -73,7 +79,7 @@ interface Ctx {
   revenueAssumptions: RevenueAssumptions;
   marketEvidence: MarketEvidence;
   updateIdea: (patch: Partial<IdeaFields>) => void;
-  updateFunding: (key: keyof FundingAnswers, value: number | null) => void;
+  updateFunding: (key: keyof FundingAnswers, value: DimensionEvidence) => void;
   updateCompanyMetrics: (patch: Partial<CompanyMetrics>) => void;
   updateRevenueAssumptions: (patch: Partial<RevenueAssumptions>) => void;
   updateMarketEvidence: (patch: Partial<MarketEvidence>) => void;
@@ -102,8 +108,8 @@ export function NewAnalysisProvider({ children }: { children: ReactNode }) {
       revenueAssumptions: state.revenueAssumptions,
       marketEvidence: state.marketEvidence,
       updateIdea: (patch) => setState((prev) => ({ ...prev, idea: { ...prev.idea, ...patch } })),
-      updateFunding: (key, val) =>
-        setState((prev) => ({ ...prev, fundingAnswers: { ...prev.fundingAnswers, [key]: val } })),
+      updateFunding: (key, value) =>
+        setState((prev) => ({ ...prev, fundingAnswers: { ...prev.fundingAnswers, [key]: value } })),
       updateCompanyMetrics: (patch) =>
         setState((prev) => ({ ...prev, companyMetrics: { ...prev.companyMetrics, ...patch } })),
       updateRevenueAssumptions: (patch) =>

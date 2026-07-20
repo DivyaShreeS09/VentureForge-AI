@@ -1,0 +1,14 @@
+{
+  "name": "FocusApp",
+  "description": "An app for helping people be more productive.",
+  "funding_answers": {
+    "problem_clarity": {"state": "not_sure_yet"},
+    "customer_pain_evidence": {"state": "not_sure_yet"},
+    "market_size_evidence": {"state": "not_sure_yet"},
+    "product_maturity": {"state": "not_sure_yet"},
+    "traction": {"state": "not_sure_yet"},
+    "revenue_model_clarity": {"state": "not_sure_yet"},
+    "team_completeness": {"state": "not_sure_yet"},
+    "competitive_differentiation": {"state": "not_sure_yet"}
+  }
+}

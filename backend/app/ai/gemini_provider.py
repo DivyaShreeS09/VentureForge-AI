@@ -12,8 +12,28 @@ import httpx
 from pydantic import ValidationError
 
 from app.ai.base import LLMUnavailable
-from app.ai.guardrails import build_prompt
-from app.ai.schemas import NarrativeContext, NarrativeEnhancement
+from app.ai.guardrails import (
+    build_competitor_possibilities_prompt,
+    build_idea_expansion_prompt,
+    build_mentor_prompt,
+    build_positioning_prompt,
+    build_prompt,
+    build_strategic_opportunity_prompt,
+)
+from app.ai.schemas import (
+    CompetitorPossibilitiesContext,
+    GeminiCompetitorPossibilities,
+    GeminiIdeaExpansion,
+    GeminiMentorInterpretation,
+    GeminiPositioningRecommendation,
+    GeminiStrategicOpportunity,
+    IdeaExpansionContext,
+    MentorContext,
+    NarrativeContext,
+    NarrativeEnhancement,
+    PositioningReviewContext,
+    StrategicOpportunityContext,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +49,13 @@ class GeminiProvider:
         self._api_key = api_key
         self._model = model
 
-    def generate_narrative(self, context: NarrativeContext) -> NarrativeEnhancement:
-        prompt = build_prompt(context)
+    def _call(self, prompt: str) -> dict:
+        """Shared request/response plumbing for every structured-JSON Gemini call this provider
+        makes. Raises LLMUnavailable for every failure mode (timeout, HTTP error, malformed
+        response shape, non-JSON text) — callers only need to additionally validate the parsed
+        payload against their own expected schema.
+        """
         url = f"{API_BASE_URL}/{self._model}:generateContent"
-
         try:
             response = httpx.post(
                 url,
@@ -64,11 +87,50 @@ class GeminiProvider:
             raise LLMUnavailable(f"Gemini response had unexpected shape: {exc}") from exc
 
         try:
-            payload = json.loads(text)
+            return json.loads(text)
         except json.JSONDecodeError as exc:
             raise LLMUnavailable(f"Gemini did not return valid JSON: {exc}") from exc
 
+    def generate_narrative(self, context: NarrativeContext) -> NarrativeEnhancement:
+        payload = self._call(build_prompt(context))
         try:
             return NarrativeEnhancement.model_validate(payload)
         except ValidationError as exc:
             raise LLMUnavailable(f"Gemini response failed schema validation: {exc}") from exc
+
+    def review_positioning(self, context: PositioningReviewContext) -> GeminiPositioningRecommendation:
+        payload = self._call(build_positioning_prompt(context))
+        try:
+            return GeminiPositioningRecommendation.model_validate(payload)
+        except ValidationError as exc:
+            raise LLMUnavailable(f"Gemini positioning response failed schema validation: {exc}") from exc
+
+    def suggest_competitor_possibilities(
+        self, context: CompetitorPossibilitiesContext
+    ) -> GeminiCompetitorPossibilities:
+        payload = self._call(build_competitor_possibilities_prompt(context))
+        try:
+            return GeminiCompetitorPossibilities.model_validate(payload)
+        except ValidationError as exc:
+            raise LLMUnavailable(f"Gemini competitor-possibilities response failed schema validation: {exc}") from exc
+
+    def generate_mentor_interpretation(self, context: MentorContext) -> GeminiMentorInterpretation:
+        payload = self._call(build_mentor_prompt(context))
+        try:
+            return GeminiMentorInterpretation.model_validate(payload)
+        except ValidationError as exc:
+            raise LLMUnavailable(f"Gemini mentor response failed schema validation: {exc}") from exc
+
+    def generate_idea_expansion(self, context: IdeaExpansionContext) -> GeminiIdeaExpansion:
+        payload = self._call(build_idea_expansion_prompt(context))
+        try:
+            return GeminiIdeaExpansion.model_validate(payload)
+        except ValidationError as exc:
+            raise LLMUnavailable(f"Gemini idea expansion response failed schema validation: {exc}") from exc
+
+    def generate_strategic_opportunity(self, context: StrategicOpportunityContext) -> GeminiStrategicOpportunity:
+        payload = self._call(build_strategic_opportunity_prompt(context))
+        try:
+            return GeminiStrategicOpportunity.model_validate(payload)
+        except ValidationError as exc:
+            raise LLMUnavailable(f"Gemini strategic opportunity response failed schema validation: {exc}") from exc

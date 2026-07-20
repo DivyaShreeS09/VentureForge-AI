@@ -7,6 +7,7 @@ import type {
   RevenueAssumptions,
   Startup,
   SystemStatus,
+  TaxonomyResponse,
 } from "../types/api";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000/api/v1";
@@ -22,15 +23,25 @@ export class ApiError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MS = 30_000;
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${path}`, {
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       ...options,
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new ApiError(0, "The request took too long to respond. Please try again.");
+    }
     throw new ApiError(0, "Could not reach the server. Check that the backend is running.");
+  } finally {
+    clearTimeout(timeout);
   }
 
   if (!response.ok) {
@@ -68,6 +79,37 @@ export function analyzeStartup(startupId: string): Promise<Analysis> {
 
 export function getAnalysis(analysisId: string): Promise<Analysis> {
   return request<Analysis>(`/analyses/${analysisId}`);
+}
+
+/** Founder-submitted correction to venture_positioning only, from the controlled taxonomy list —
+ * see backend/app/api/v1/analyses.py's `/industry-correction` route. Never touches model_category. */
+export function correctIndustry(
+  analysisId: string,
+  payload: { primary_domain: string; secondary_domains?: string[] },
+): Promise<Analysis> {
+  return request<Analysis>(`/analyses/${analysisId}/industry-correction`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** Live controlled-taxonomy listing — the source of truth for the positioning-correction domain
+ * dropdown. See backend/app/api/v1/taxonomy.py. */
+export function getTaxonomy(): Promise<TaxonomyResponse> {
+  return request<TaxonomyResponse>("/taxonomy");
+}
+
+/** Persist an edit to one or more revenue assumptions — see
+ * backend/app/api/v1/analyses.py's `/revenue-assumptions` route. Partial: only fields present in
+ * `payload` are changed; recomputes scenarios server-side and returns the full updated analysis. */
+export function saveRevenueAssumptions(
+  analysisId: string,
+  payload: Partial<RevenueAssumptions>,
+): Promise<Analysis> {
+  return request<Analysis>(`/analyses/${analysisId}/revenue-assumptions`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export function getModelsStatus(): Promise<ModelStatus> {
