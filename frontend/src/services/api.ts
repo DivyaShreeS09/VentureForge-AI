@@ -1,6 +1,7 @@
 import type {
   Analysis,
   CompanyMetrics,
+  CustomerRFMInput,
   FundingAnswers,
   MarketEvidence,
   ModelStatus,
@@ -65,6 +66,7 @@ export function createStartup(payload: {
   company_metrics?: CompanyMetrics;
   revenue_assumptions?: RevenueAssumptions;
   market_evidence?: MarketEvidence;
+  customer_rfm?: CustomerRFMInput | null;
 }): Promise<Startup> {
   return request<Startup>("/startups", { method: "POST", body: JSON.stringify(payload) });
 }

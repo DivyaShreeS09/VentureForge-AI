@@ -39,6 +39,12 @@ export interface MarketEvidence {
   known_competitors?: string[];
 }
 
+export interface CustomerRFMInput {
+  recency_days: number;
+  frequency: number;
+  monetary: number;
+}
+
 export interface Startup {
   id: string;
   name: string;
@@ -47,6 +53,7 @@ export interface Startup {
   company_metrics: CompanyMetrics;
   revenue_assumptions: RevenueAssumptions;
   market_evidence: MarketEvidence;
+  customer_rfm: CustomerRFMInput | null;
   created_at: string;
   updated_at: string;
 }
@@ -187,6 +194,7 @@ export interface JudgeSummary {
   /** Optional supplementary narrative from Gemini — present only when GEMINI_API_KEY is
    * configured server-side and the call succeeded. Never affects industry/confidence/score. */
   llm_narrative?: LlmNarrative | null;
+  evidence_categories?: Record<string, string[]>;
 }
 
 export interface WorkflowTraceStep {
