@@ -32,35 +32,33 @@ def generate_market_analysis(
     customer_type = (market_evidence or {}).get("customer_type")
     startup_stage = (market_evidence or {}).get("startup_stage")
 
-    industry_label = (industry_prediction or {}).get("predicted_industry")
     industry_is_uncertain = (industry_prediction or {}).get("is_uncertain", True)
 
     evidence_gaps: list[str] = []
     recommended_validation_actions: list[str] = []
 
     if target_market:
-        market_summary = f"Targets the '{target_market}' market"
+        market_summary = f"You're going after {target_market}"
     else:
-        market_summary = "Target market not specified"
+        market_summary = "You haven't named a specific market yet"
         evidence_gaps.append("target_market")
         recommended_validation_actions.append(
             "Define the specific target market segment (not just the industry classification)."
         )
 
     if geography:
-        market_summary += f" in {geography}"
+        market_summary += f", starting in {geography}"
     else:
         evidence_gaps.append("geography")
         recommended_validation_actions.append("Specify the geographic market(s) being targeted.")
 
-    if industry_label:
-        qualifier = " (industry classification flagged as uncertain)" if industry_is_uncertain else ""
-        market_summary += f", within the '{industry_label}' industry as classified by the ML model{qualifier}."
+    if industry_is_uncertain:
+        market_summary += " — I'd hold my read on the broader industry loosely for now."
     else:
-        market_summary += ". Industry classification was unavailable for this run."
+        market_summary += "."
 
     if customer_type:
-        market_summary += f" Primary customer type: {customer_type}."
+        market_summary += f" The buyer I'd focus on: {customer_type}."
     else:
         evidence_gaps.append("customer_type")
         recommended_validation_actions.append("Describe the primary customer type (B2B, B2C, enterprise, etc.).")
@@ -73,27 +71,25 @@ def generate_market_analysis(
     constraints: list[str] = []
 
     if market_size_evidence.get("raw_score") == 2:
-        opportunity_drivers.append(
-            "Founder-provided market sizing evidence rated strong by the funding-readiness rubric."
-        )
+        opportunity_drivers.append("You've already backed up how big this opportunity is — that's real work most founders skip.")
     elif market_size_evidence.get("raw_score") in (0, None):
-        constraints.append("No market sizing evidence was provided — opportunity scale is unknown, not estimated.")
+        constraints.append("You haven't sized this market yet, so I can't tell you how big the opportunity really is.")
         evidence_gaps.append("market_size_evidence")
         recommended_validation_actions.append("Produce a sourced TAM/SAM/SOM estimate rather than an unsupported figure.")
 
     if customer_pain_evidence.get("raw_score") == 2:
-        opportunity_drivers.append("Documented evidence of customer pain (interviews/data) supports real demand.")
+        opportunity_drivers.append("You have real documented evidence people feel this pain — that's the foundation everything else builds on.")
     elif customer_pain_evidence.get("raw_score") in (0, None):
-        constraints.append("No documented customer pain evidence — demand signal is unconfirmed.")
+        constraints.append("There's no documented evidence yet that people actually feel this pain — worth confirming before you go further.")
         evidence_gaps.append("customer_pain_evidence")
 
     if startup_stage and startup_stage in _STAGE_MATURITY:
         market_maturity = _STAGE_MATURITY[startup_stage]
     elif startup_stage:
-        market_maturity = f"unrecognized stage value '{startup_stage}' — treated as unknown"
+        market_maturity = f"I don't recognize \"{startup_stage}\" as a stage, so I'm treating it as unknown for now."
         evidence_gaps.append("startup_stage")
     else:
-        market_maturity = "unknown — startup_stage not provided"
+        market_maturity = "You haven't told me what stage you're at yet, so I can't place this in the market's maturity curve."
         evidence_gaps.append("startup_stage")
 
     known_fields_present = sum(1 for v in (target_market, geography, customer_type, startup_stage) if v)
@@ -117,8 +113,8 @@ def generate_market_analysis(
         },
         "recommended_validation_actions": recommended_validation_actions,
         "disclaimer": (
-            "No live/public market research data source is integrated into this system. This "
-            "analysis reflects only what was submitted plus the deterministic funding-readiness "
-            "rubric — it is not current TAM/SAM/SOM or market-trend research."
+            "I don't have a live research feed to pull real market data from — everything above "
+            "comes from what you've told me so far, not outside research. Treat it as a starting "
+            "read, not a market report."
         ),
     }

@@ -21,7 +21,16 @@ class Settings(BaseSettings):
     # Optional narrative enhancement (see backend/app/ai/). Unset by default — the deterministic
     # Judge Agent is fully functional either way. Never sent to the frontend.
     gemini_api_key: str | None = None
-    gemini_model: str = "gemini-2.0-flash"
+    # gemini-2.0-flash returned 429 RESOURCE_EXHAUSTED (limit: 0 on the free tier) when live-tested
+    # against a real project — gemini-flash-latest is the confirmed-working default (see
+    # app.ai.gemini_provider's module docstring for the full investigation).
+    gemini_model: str = "gemini-flash-latest"
+
+    # Semantic venture retrieval (ML Differentiator Sprint, see app.ml.venture_retrieval). Off by
+    # default: loading the sentence-transformer model takes ~20-40s on first use, which must never
+    # happen as a side effect of running the test suite. Enable explicitly once the corpus artifact
+    # (ml/models/venture_retrieval/v1/) and `sentence-transformers` are confirmed available.
+    enable_venture_retrieval: bool = False
 
     @field_validator("model_dir")
     @classmethod

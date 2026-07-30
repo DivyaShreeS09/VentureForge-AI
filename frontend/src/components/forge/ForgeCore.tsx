@@ -1,115 +1,88 @@
+import { motion } from "framer-motion";
 import emblem from "../../assets/ventureforge-emblem.webp";
+import { useMotionTier } from "../../motion/transitions";
 
-const RADIUS = 92;
+const RADIUS = 88;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-export type ForgeCoreState = "idle" | "running" | "done" | "error";
+export type ForgeCoreState = "running" | "done" | "error";
 
 interface Props {
   state: ForgeCoreState;
-  /** Real fraction (0-1) of orchestrator stages that have reported "ok" so far — never a
-   * simulated timer. See ForgeSequence, which derives this from the actual workflow trace. */
+  /** Real fraction (0-1) of real founder-facing stages reached so far — see stageOrder.ts.
+   * Never a simulated timer. */
   progress: number;
 }
 
-/** Violet energy at the start of a run, an electric-blue intelligence pulse through the middle of
- * the analysis, and gold ignition only once the run has actually completed — never gold before
- * real completion, since gold is reserved for genuine achievement per the brand's color hierarchy. */
-function phaseColor(state: ForgeCoreState, progress: number): string {
-  if (state === "error") return "#ff5a6b";
-  if (state === "done") return "#ff9d1c";
-  if (state === "idle") return "#7c2cff";
-  return progress < 0.5 ? "#7c2cff" : "#168bff";
-}
+// Decorative orbiting sparks around the ring, shown only while `running` — the Analysis
+// screen's one hero moment ("living AI command center"), never a substitute for the real
+// progress ring itself and never shown once a real terminal state is reached.
+const ORBIT_SPARKS = [
+  { radius: 118, duration: "9s", delay: "0s", color: "bg-forge-accent-2" },
+  { radius: 104, duration: "13s", delay: "-4s", color: "bg-forge-accent-3" },
+  { radius: 126, duration: "17s", delay: "-8s", color: "bg-forge-accent" },
+];
 
-/**
- * The official VentureForgeAI emblem as the living reactor core of the Forge sequence. Two
- * counter-rotating orbit rings plus a progress ring surround the mark; all color and motion is
- * driven by real orchestrator state passed in as props — nothing here is a simulated countdown.
- */
+/** Calm, focused, purposeful — not a loading spinner. One ring carrying the real progress
+ * (electric-purple while running — orange is reserved for CTA/warnings/energy, not the app's
+ * dominant identity), filling only as real stages complete, using the `threshold` motion tier
+ * (a stage boundary is a meaningful state change, not a per-frame animation).
+ * `done`/`error` reuse the same semantic confirmed/risk tokens Chip already uses elsewhere.
+ * While running, a soft electric-purple glow and a few slow orbiting sparks (aria-hidden,
+ * purely decorative) evoke "AI thinking" for this page's one hero moment — the ring's real
+ * math (`RADIUS`/`CIRCUMFERENCE`/`strokeDashoffset`) and state contract are untouched. */
 export function ForgeCore({ state, progress }: Props) {
+  const transition = useMotionTier("threshold");
   const clamped = Math.max(0, Math.min(1, progress));
-  // Idle is a resting decorative state (e.g. the Home screen, where nothing is actually running) —
-  // it draws a full, static ring rather than any particular fake percentage.
-  const offset = state === "idle" ? 0 : CIRCUMFERENCE * (1 - clamped);
-  const color = phaseColor(state, clamped);
-  const isDone = state === "done";
+  const offset = CIRCUMFERENCE * (1 - clamped);
+  const ringClass = state === "error" ? "stroke-forge-risk" : state === "done" ? "stroke-forge-confirmed" : "stroke-forge-accent-2";
+  const running = state === "running";
 
   return (
-    <div className="relative flex h-64 w-64 items-center justify-center sm:h-72 sm:w-72">
-      <div
-        className={`absolute inset-0 rounded-full blur-2xl transition-colors duration-700 ${state === "idle" ? "animate-pulse-slow" : ""}`}
-        style={{ backgroundColor: `${color}22` }}
-        aria-hidden="true"
-      />
-
+    <div className="relative flex h-56 w-56 items-center justify-center">
+      {running &&
+        ORBIT_SPARKS.map((spark, i) => (
+          <span
+            key={i}
+            aria-hidden="true"
+            className={`absolute h-1.5 w-1.5 rounded-full ${spark.color} animate-orbit opacity-70`}
+            style={{
+              // @ts-expect-error -- custom property consumed by the `orbit` keyframe in tailwind.config.js
+              "--orbit-radius": `${spark.radius}px`,
+              animationDuration: spark.duration,
+              animationDelay: spark.delay,
+            }}
+          />
+        ))}
       <svg
-        width="256"
-        height="256"
-        viewBox="0 0 256 256"
-        role="img"
-        aria-label={
-          state === "idle"
-            ? "VentureForge AI emblem"
-            : state === "error"
-              ? "Venture forge sequence failed"
-              : isDone
-                ? "Venture blueprint forged"
-                : `Venture forge sequence in progress, ${Math.round(clamped * 100)} percent complete`
-        }
+        width="224"
+        height="224"
+        viewBox="0 0 224 224"
+        aria-hidden="true"
+        className={running ? "drop-shadow-[0_0_24px_rgba(139,92,246,0.4)]" : ""}
       >
-        <circle
-          cx="128"
-          cy="128"
-          r={112}
-          fill="none"
-          stroke="rgba(245,247,255,0.05)"
-          strokeWidth="1"
-          strokeDasharray="1 7"
-          className={state === "running" || state === "idle" ? "origin-center animate-spin-slow" : ""}
-        />
-        <circle
-          cx="128"
-          cy="128"
-          r={104}
-          fill="none"
-          stroke="rgba(245,247,255,0.04)"
-          strokeWidth="1"
-          strokeDasharray="3 5"
-          className={state === "running" || state === "idle" ? "origin-center animate-spin-reverse-slow" : ""}
-        />
-        <circle cx="128" cy="128" r={RADIUS} fill="none" stroke="rgba(245,247,255,0.06)" strokeWidth="9" />
-        <circle
-          cx="128"
-          cy="128"
+        {/* Matches the same faint-track opacity already used for "upcoming" stage dots in
+            ForgeSequence's checklist (bg-forge-text/[.16]) — a lower value made the unfilled
+            ring track nearly invisible against the canvas at low progress, reading as a stray
+            floating arc rather than a ring (confirmed via a live screenshot during a prior
+            sprint's audit). */}
+        <circle cx="112" cy="112" r={RADIUS} fill="none" className="stroke-forge-text/[.16]" strokeWidth="6" />
+        <motion.circle
+          cx="112"
+          cy="112"
           r={RADIUS}
           fill="none"
-          stroke={color}
-          strokeWidth="9"
+          strokeWidth="6"
           strokeLinecap="round"
           strokeDasharray={CIRCUMFERENCE}
-          strokeDashoffset={offset}
-          transform="rotate(-90 128 128)"
-          className="transition-[stroke-dashoffset,stroke] duration-700 ease-out"
-          style={{ filter: `drop-shadow(0 0 14px ${color}90)` }}
+          initial={false}
+          animate={{ strokeDashoffset: offset }}
+          transition={transition}
+          transform="rotate(-90 112 112)"
+          className={ringClass}
         />
       </svg>
-
-      <div className="absolute flex flex-col items-center">
-        <img
-          src={emblem}
-          alt=""
-          aria-hidden="true"
-          className={`w-28 transition-[filter] duration-700 sm:w-32 ${isDone ? "animate-ignite" : ""}`}
-          style={{ filter: `drop-shadow(0 0 ${isDone ? 30 : 16}px ${color}${isDone ? "cc" : "80"})` }}
-        />
-        {state !== "idle" && (
-          <span className="mt-3 text-display text-xl text-ink-primary">{Math.round(clamped * 100)}%</span>
-        )}
-        <span className={`text-xs uppercase tracking-[0.2em] text-ink-muted ${state === "idle" ? "mt-3" : "mt-0.5"}`}>
-          {state === "idle" ? "VentureForge Core" : state === "error" ? "Halted" : isDone ? "Forged" : "Forging"}
-        </span>
-      </div>
+      <img src={emblem} alt="" aria-hidden="true" className="absolute w-16 opacity-90" />
     </div>
   );
 }

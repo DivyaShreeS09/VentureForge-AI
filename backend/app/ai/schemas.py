@@ -226,14 +226,13 @@ def _validate_one_possibility(raw: object) -> GeminiCompetitorPossibility | None
     return item
 
 
-MAX_MENTOR_TEXT_LENGTH = 500
-
-
 class MentorContext(BaseModel):
-    """Structured, source-attributed facts sent to the Gemini mentor reviewer (Full Mentor
+    """Structured, source-attributed facts sent to the Gemini mentor advisor (Full Mentor
     Orchestration phase) — every fact here was already computed deterministically by
-    app.agents.mentor_synthesis.build_deterministic_mentor. Gemini's job is to rephrase/polish
-    these into more natural mentor prose, never to add a new fact, competitor, number, or decision
+    app.agents.mentor_synthesis.build_deterministic_mentor. Gemini's job (Product Intelligence
+    Sprint: "Gemini should think, not rewrite") is to ENRICH this baseline with new, clearly-tagged
+    strategic advice (see GeminiMentorAdvice below) — never to rephrase, replace, or override any
+    field already decided here, and never to assert a new fact, competitor, number, or decision
     that isn't already present in this context. `startup_description` is DATA to analyze (see
     app.ai.guardrails' prompt-injection framing), never an instruction.
     """
@@ -255,53 +254,99 @@ class MentorContext(BaseModel):
     idea_understanding_facts: dict
 
 
-class GeminiMentorInterpretation(BaseModel):
-    """Gemini's mentor contribution — deliberately a REDUCED subset of the full
-    app.agents.mentor_schemas.MentorInterpretation shape. Every field that could alter a
-    Judge-owned decision (venture_positioning, model_category), a deterministic ranking
-    (top_next_actions, validation_plan, roadmap_30_60_90), a required caveat
-    (evidence_and_uncertainty), or the feature-gap/capability classification is simply ABSENT from
-    this schema — Gemini has nothing to put such a value into even if it tried. See
-    app.agents.mentor_reviewer.merge_gemini_narrative_into_baseline for exactly which baseline
-    fields these are allowed to replace (always a narrow, narrative-only subset) and the
-    additional safety checks (no new numeric claims, no unattested proper-noun sequences) applied
-    before any of this is used.
+class MentorAdviceCategory(str, Enum):
+    """Every sentence Gemini contributes to the mentor advice list must self-declare which of
+    these five categories it is — this is the structural backbone of the "Gemini should think, not
+    rewrite" redesign. `EVIDENCE` is deliberately impossible for Gemini to claim (see the
+    validator below): evidence is, by definition, something already established in the
+    deterministic baseline or the founder's own description, never something Gemini asserts about
+    itself.
     """
 
-    idea_summary: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    idea_target_user: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    idea_problem: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    idea_proposed_solution: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    idea_business_context: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    customer_and_market: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    business_model: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    competitor_landscape: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    revenue_scenarios: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    concise_verdict: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    strongest_signal: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    biggest_risk: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    immediate_priority: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    mvp_single_core_problem: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    mvp_minimum_workflow: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    mvp_success_metric: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    mvp_pilot_environment: str = Field(max_length=MAX_MENTOR_TEXT_LENGTH)
-    mvp_reasons: list[str] = Field(default_factory=list)
+    EVIDENCE = "evidence"
+    INFERENCE = "inference"
+    AI_RECOMMENDATION = "ai_recommendation"
+    MARKET_ASSUMPTION = "market_assumption"
+    EXPERIMENT_SUGGESTION = "experiment_suggestion"
 
-    @field_validator(
-        "idea_summary", "idea_target_user", "idea_problem", "idea_proposed_solution",
-        "idea_business_context", "customer_and_market", "business_model", "competitor_landscape",
-        "revenue_scenarios", "concise_verdict", "strongest_signal", "biggest_risk",
-        "immediate_priority", "mvp_single_core_problem", "mvp_minimum_workflow",
-        "mvp_success_metric", "mvp_pilot_environment",
-    )
+
+class MentorAdviceDomain(str, Enum):
+    """The 13 advice domains Gemini may reason about — deliberately every one is *advice*
+    (a suggestion, a rationale, a strategy) and none is a *decision* (positioning, funding
+    readiness, ranking) — those stay exclusively deterministic/Judge-owned."""
+
+    FEATURE_IDEA = "feature_idea"
+    DIFFERENTIATION = "differentiation"
+    GO_TO_MARKET = "go_to_market"
+    PILOT_STRATEGY = "pilot_strategy"
+    PRICING_RATIONALE = "pricing_rationale"
+    MARKETING = "marketing"
+    CUSTOMER_ACQUISITION = "customer_acquisition"
+    FUNDRAISING_GUIDANCE = "fundraising_guidance"
+    ROADMAP = "roadmap"
+    EXECUTION_ADVICE = "execution_advice"
+    RISK_MITIGATION = "risk_mitigation"
+    ALTERNATIVE_BUSINESS_MODEL = "alternative_business_model"
+    GROWTH_EXPERIMENT = "growth_experiment"
+
+
+MAX_MENTOR_ADVICE_ITEMS = 10
+MAX_MENTOR_ADVICE_TEXT_LENGTH = 320
+
+# Defense-in-depth against Gemini asserting external research it cannot actually have performed
+# (the mandate's "may not invent... citations... research results"). Not a guarantee on its own —
+# paired with the number/proper-noun guards in app.agents.mentor_reviewer, matching the same
+# "disjunction of cheap, explainable structural checks" philosophy already used for competitor
+# possibilities (see _fails_structural_safety_checks above).
+_CITATION_CLAIM_PATTERN = re.compile(
+    r"\b(according to|studies? show|research (shows|indicates|suggests)|cited|source:|data from|"
+    r"survey (shows|found)|report(s)? (show|indicate))\b",
+    re.IGNORECASE,
+)
+
+
+class GeminiMentorAdviceItem(BaseModel):
+    """One tagged, bounded piece of advice. `domain` says what kind of advice it is; `category`
+    says what epistemic status it has — the two are orthogonal and both mandatory, so a rendering
+    surface can never show advice without disclosing its own certainty level."""
+
+    domain: MentorAdviceDomain
+    category: MentorAdviceCategory
+    text: str = Field(max_length=MAX_MENTOR_ADVICE_TEXT_LENGTH)
+
+    @field_validator("text")
     @classmethod
-    def _strip_text(cls, value: str) -> str:
+    def _strip(cls, value: str) -> str:
         return value.strip()
 
-    @field_validator("mvp_reasons")
+    @field_validator("category")
     @classmethod
-    def _bound_reasons(cls, value: list[str]) -> list[str]:
-        return [item.strip()[:MAX_MENTOR_TEXT_LENGTH] for item in value[:5] if item and item.strip()]
+    def _gemini_may_never_self_certify_as_evidence(cls, value: "MentorAdviceCategory") -> "MentorAdviceCategory":
+        if value == MentorAdviceCategory.EVIDENCE:
+            raise ValueError(
+                "Gemini-authored mentor advice may never tag itself 'evidence' — evidence is "
+                "reserved for facts already established in the deterministic baseline or the "
+                "founder's own description, never a claim Gemini makes about itself."
+            )
+        return value
+
+
+class GeminiMentorAdvice(BaseModel):
+    """The *only* shape a Gemini mentor-advice response may take: a bounded list of tagged advice
+    items. There is no field here for venture_positioning, funding readiness, idea_understanding,
+    or any other deterministic/Judge-owned value — Gemini enriches the mentor report, it never
+    overwrites it (see app.agents.mentor_reviewer.enrich_mentor_safely for the additional
+    per-item safety checks — no unsupported numeric claims, no unattested proper nouns, no
+    citation-style research claims — applied before any item is used)."""
+
+    advice: list[GeminiMentorAdviceItem] = Field(default_factory=list)
+
+    @field_validator("advice", mode="before")
+    @classmethod
+    def _bound_items(cls, value: object) -> list:
+        if not isinstance(value, list):
+            return []
+        return value[:MAX_MENTOR_ADVICE_ITEMS]
 
 
 MAX_IDEA_EXPANSION_ITEMS = 4

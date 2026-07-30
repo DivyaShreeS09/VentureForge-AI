@@ -1,9 +1,13 @@
+from tests.conftest import wait_for_terminal_analysis
+
+
 def _create_and_analyze(client, description="Software that helps small restaurants track inventory and reduce food waste."):
     startup = client.post(
         "/api/v1/startups",
         json={"name": "WasteLess", "description": description, "funding_answers": {"problem_clarity": 2}},
     ).json()
-    analysis = client.post(f"/api/v1/startups/{startup['id']}/analyze").json()
+    started = client.post(f"/api/v1/startups/{startup['id']}/analyze").json()
+    analysis = wait_for_terminal_analysis(client, started["id"])
     return startup, analysis
 
 

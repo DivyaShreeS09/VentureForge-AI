@@ -22,10 +22,11 @@ items are always framed as "if X is slow, Y may also fit," never "you should piv
 
 from __future__ import annotations
 
-IDEA_EXPANSION_VERSION = "v1"
+from app.agents.confidence_tier import CONFIRMED as _CONFIRMED
+from app.agents.confidence_tier import HYPOTHESIS as _HYPOTHESIS
+from app.agents.confidence_tier import SPECULATIVE as _SPECULATIVE
 
-_CONFIRMED = "confirmed_from_evidence"
-_HYPOTHESIS = "reasonable_hypothesis"
+IDEA_EXPANSION_VERSION = "v1"
 
 # Generic, domain-agnostic monetization patterns — well-established business knowledge, not a
 # claim about this specific company. Always `reasonable_hypothesis`: every venture could in
@@ -95,9 +96,8 @@ def _customer_segments(deployment_sectors: list[str], current_target_user: str |
     return [
         _confirmed_item(
             sector,
-            f"Already identified as a deployment sector for ventures in this space — the "
-            f"underlying capability likely transfers, even if {current_target_user or 'the current target user'} "
-            "remains the first segment to validate.",
+            f"What you've already built likely transfers here too — even though "
+            f"{current_target_user or 'your current target user'} is still the right first segment to prove it with.",
         )
         for sector in deployment_sectors
     ]
@@ -109,8 +109,8 @@ def _adjacent_industries(primary_domain: str | None, secondary_domains: list[str
     return [
         _confirmed_item(
             domain,
-            f"Already identified as a secondary domain sharing overlapping needs with "
-            f"{primary_domain} in this venture's own positioning.",
+            f"This overlaps with what you're already building in {primary_domain} — the same "
+            "underlying need shows up here too, based on your own positioning.",
         )
         for domain in secondary_domains
     ]
@@ -125,7 +125,7 @@ def _feature_ideas(feature_gap: dict) -> list[dict]:
         {
             "title": f"Later: {cap['label']}",
             "reason": cap["reason"],
-            "confidence_tier": "speculative_future_opportunity",
+            "confidence_tier": _SPECULATIVE,
             "source": "deterministic",
         }
         for cap in feature_gap.get("premature_capabilities", [])
@@ -161,7 +161,14 @@ def _go_to_market(mvp_recommendation: dict, primary_domain: str | None) -> list[
     steps = list(_GENERIC_GTM_STEPS)
     if primary_domain:
         steps.append(f"Look for communities or directories relevant to {primary_domain} to list the pilot in.")
-    return [_hypothesis_item(step, f"A standard early go-to-market step given the pilot plan: {mvp_recommendation.get('pilot_environment', 'one real site, not a broad launch')}.") for step in steps]
+    pilot_environment = mvp_recommendation.get("pilot_environment", "one real site, not a broad launch")
+    return [
+        _hypothesis_item(
+            step,
+            f"This fits your pilot plan well: {pilot_environment}",
+        )
+        for step in steps
+    ]
 
 
 def _mvp_simplification(feature_gap: dict, mvp_recommendation: dict) -> dict:
@@ -176,16 +183,20 @@ def _mvp_simplification(feature_gap: dict, mvp_recommendation: dict) -> dict:
 
     return {
         "current_vision": (
-            f"Everything described so far: {', '.join(all_capability_labels)}."
+            f"Everything you've described so far touches: {', '.join(all_capability_labels)}."
             if all_capability_labels
-            else "The full vision as described, before any capability has been scoped down."
+            else "The full vision as you've described it, before scoping anything down."
         ),
         "simplest_mvp": mvp_recommendation.get("minimum_workflow", "Not yet defined."),
         "version_2": (
-            f"Add: {', '.join(recommended_labels[:2])}." if recommended_labels else "No further capability recommended yet — validate the MVP first."
+            f"Once the first pilot proves out, layer in {', '.join(recommended_labels[:2])}."
+            if recommended_labels
+            else "Nothing further to recommend yet — prove out the MVP first."
         ),
         "version_3": (
-            f"Add: {', '.join(premature_labels[:2])}." if premature_labels else "No advanced capability identified yet."
+            f"Further down the road, {', '.join(premature_labels[:2])} become worth building."
+            if premature_labels
+            else "No advanced capability identified yet."
         ),
         "confidence_tier": _CONFIRMED,
     }

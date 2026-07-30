@@ -21,4 +21,11 @@ def models_status() -> ModelStatusResponse:
         success_predictor_version=success_metadata.get("version") if success_metadata else None,
         success_predictor_trained_at=success_metadata.get("trained_at") if success_metadata else None,
         revenue_engine_version=SCENARIO_ENGINE_VERSION,
+        industry_classifier_test_metrics=metadata.get("test_metrics") if metadata else None,
+        industry_classifier_cv_results=metadata.get("cv_results") if metadata else None,
+        industry_classifier_model_card=metadata.get("model_card") if metadata else None,
+        success_predictor_test_metrics=success_metadata.get("test_metrics") if success_metadata else None,
+        success_predictor_cv_results=success_metadata.get("cv_results") if success_metadata else None,
+        success_predictor_model_card=success_metadata.get("model_card") if success_metadata else None,
+        success_predictor_disclaimer=success_metadata.get("disclaimer") if success_metadata else None,
     )

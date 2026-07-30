@@ -76,6 +76,47 @@ def test_no_candidates_falls_back_to_model_category_flagged_low_confidence():
     assert result["correction_rationale"]
 
 
+# --- Rule 2 (corrected): no eligible candidates but a confident Gemini recovery is available ----
+
+
+def test_no_candidates_uses_high_confidence_gemini_recovery_instead_of_weak_classifier():
+    """The exact failure class this fix targets: a weak, spurious-keyword-driven classifier guess
+    (e.g. 'fintech' at 0.24 confidence for a canteen/food-service SaaS) must not be trusted when a
+    confident Gemini recommendation is available, even though the local taxonomy has zero eligible
+    candidates for this description."""
+    taxonomy_result = score_taxonomy("Xyzzy quux flarp.")
+    gemini_rec = GeminiPositioningRecommendation(
+        recommended_primary_domain="Food-Cost Management",
+        recommended_secondary_domains=["Restaurant Operations Technology"],
+        confidence=GEMINI_AGREEMENT_CONFIDENCE_FLOOR + 0.1,
+        rationale="The description centers on institutional food-service operations.",
+    )
+    result = resolve_venture_positioning(
+        taxonomy_result, {"label": "fintech", "confidence": 0.24, "is_uncertain": True}, gemini_rec
+    )
+    vp = result["venture_positioning"]
+    assert vp["primary_domain"] == "Food-Cost Management"
+    assert vp["secondary_domains"] == ["Restaurant Operations Technology"]
+    assert vp["is_low_confidence"] is True
+    assert vp["resolution_source"] == "gemini_recovery_no_taxonomy_match"
+    assert "fintech" in result["correction_rationale"]
+
+
+def test_no_candidates_ignores_low_confidence_gemini_recovery():
+    taxonomy_result = score_taxonomy("Xyzzy quux flarp.")
+    gemini_rec = GeminiPositioningRecommendation(
+        recommended_primary_domain="Food-Cost Management",
+        confidence=GEMINI_AGREEMENT_CONFIDENCE_FLOOR - 0.2,
+        rationale="Not very sure.",
+    )
+    result = resolve_venture_positioning(
+        taxonomy_result, {"label": "fintech", "confidence": 0.24, "is_uncertain": True}, gemini_rec
+    )
+    vp = result["venture_positioning"]
+    assert vp["primary_domain"] == "fintech"
+    assert vp["resolution_source"] == "model_category_fallback"
+
+
 # --- Rule 3: a clearly dominant candidate is used unchanged, Gemini never consulted -------------
 
 

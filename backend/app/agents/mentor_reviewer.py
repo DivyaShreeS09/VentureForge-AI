@@ -1,29 +1,34 @@
-"""Safe, never-raising Gemini mentor reviewer wrapper (Full Mentor Orchestration phase).
+"""Safe, never-raising Gemini mentor advisor wrapper (Full Mentor Orchestration phase).
 
-`review_mentor_safely` is the only entry point the orchestrator calls. It always returns a
-complete, schema-valid MentorInterpretation dict: the deterministic baseline
-(app.agents.mentor_synthesis.build_deterministic_mentor) unchanged whenever Gemini is
-unconfigured, unavailable, times out, returns malformed/invalid JSON, or its response fails any of
-the safety checks below — and the baseline with a narrow, validated subset of narrative fields
-replaced by Gemini's rephrasing otherwise.
+Product Intelligence Sprint redesign: Gemini used to be restricted to rephrasing a narrow subset
+of the deterministic mentor baseline's narrative fields (replacing them in place — see git history
+for the prior `merge_gemini_narrative_into_baseline`). That made Gemini a paraphrasing engine, not
+a mentor. This module now does the opposite: the deterministic baseline is NEVER touched, rephrased,
+or replaced — Gemini instead contributes a bounded list of new, explicitly-tagged advice items
+(`GeminiMentorAdvice`) appended under `mentor_advice_items`, covering domains (feature ideas,
+differentiation, GTM, pricing rationale, pilot strategy, marketing, customer acquisition,
+fundraising guidance, roadmap, execution advice, risk mitigation, alternative business models,
+growth experiments) the deterministic system does not itself reason about.
 
-Safety contract (see `merge_gemini_narrative_into_baseline`):
-  - Every Judge-owned or structural field (venture_positioning, feature_gap_analysis,
-    validation_plan, roadmap_30_60_90, top_next_actions, evidence_and_uncertainty,
-    mvp_recommendation's target_user/included_capabilities/excluded_for_now, mentor_verdict's
-    readiness_level) is ALWAYS taken from the deterministic baseline — Gemini's schema
-    (GeminiMentorInterpretation) has no field for any of these, so there is nothing to merge even
-    if a raw response tried to include one (extra keys are silently ignored by Pydantic).
-  - Gemini may only replace: idea_understanding's text fields, customer_and_market,
-    business_model, competitor_landscape, revenue_scenarios, mentor_verdict's
-    concise_verdict/strongest_signal/biggest_risk/immediate_priority, and mvp_recommendation's
-    single_core_problem/minimum_workflow/success_metric/pilot_environment/reasons.
-  - Even within that allowed subset, the whole Gemini contribution is rejected (falling back to
-    100% deterministic) if: it introduces any number not already present in the startup
-    description or the deterministic baseline (a cheap, effective invented-traction/invented-
-    numeric-claim guard), or it contains an unattested two-or-more-word Title-Case sequence not
-    already present in the startup name, venture positioning domains/sectors, or founder-supplied
-    competitor names (a cheap, effective invented-competitor/invented-company guard).
+`review_mentor_safely` is the only entry point the orchestrator/analysis_service call. It always
+returns a complete mentor dict: the deterministic baseline with `mentor_advice_items: []` whenever
+Gemini is unconfigured, unavailable, times out, returns malformed/invalid JSON, or every one of its
+items fails safety checks — and the baseline with `mentor_advice_items` populated by whichever items
+pass every check below otherwise. `source`/every existing baseline field is untouched either way.
+
+Safety contract (see `_safe_advice_items`):
+  - Structural (schema-level, see app.ai.schemas.GeminiMentorAdviceItem): `category` can never be
+    "evidence" — that value is rejected at validation time, before this module ever sees it.
+  - Per item, independently (one bad item drops only that item, never the whole list — same
+    pattern as app.agents.idea_expansion_reviewer/strategic_opportunity_reviewer/
+    competitor_reviewer): reject any item introducing a number (a count, dollar figure, percentage)
+    not already present in the startup description or the deterministic baseline (blocks invented
+    market sizes, customer counts, factual prices, accuracy numbers, statistics); reject any item
+    containing an unattested two-or-more-word Title-Case sequence not already known from this
+    venture's own context (blocks invented competitors/companies/regulation names presented as
+    fact); reject any item matching a citation-style claim pattern ("according to", "studies show",
+    "source:", ...) since Gemini cannot have performed real external research (blocks invented
+    citations/research results).
 """
 
 from __future__ import annotations
@@ -34,20 +39,12 @@ import re
 
 from app.ai.base import LLMUnavailable
 from app.ai.factory import get_llm_provider
-from app.ai.schemas import GeminiMentorInterpretation, MentorContext
+from app.ai.schemas import _CITATION_CLAIM_PATTERN, GeminiMentorAdvice, GeminiMentorAdviceItem, MentorContext
 
 logger = logging.getLogger(__name__)
 
 _NUMBER_PATTERN = re.compile(r"\d+(?:\.\d+)?")
 _TITLE_CASE_SEQUENCE = re.compile(r"\b[A-Z][a-zA-Z]+(?:\s[A-Z][a-zA-Z]+)+\b")
-
-_NARRATIVE_TEXT_FIELDS = (
-    "idea_summary", "idea_target_user", "idea_problem", "idea_proposed_solution",
-    "idea_business_context", "customer_and_market", "business_model", "competitor_landscape",
-    "revenue_scenarios", "concise_verdict", "strongest_signal", "biggest_risk",
-    "immediate_priority", "mvp_single_core_problem", "mvp_minimum_workflow",
-    "mvp_success_metric", "mvp_pilot_environment",
-)
 
 
 def _numbers_in(text: str) -> set[str]:
@@ -58,85 +55,45 @@ def _title_case_sequences_in(text: str) -> set[str]:
     return set(_TITLE_CASE_SEQUENCE.findall(text or ""))
 
 
-def _all_gemini_text(gemini: GeminiMentorInterpretation) -> str:
-    parts = [getattr(gemini, field) for field in _NARRATIVE_TEXT_FIELDS]
-    parts.extend(gemini.mvp_reasons)
-    return " ".join(parts)
-
-
 def _known_names_from_baseline(baseline: dict, startup_name: str) -> set[str]:
-    """Every legitimate multi-word Title-Case sequence this response is allowed to contain: the
+    """Every legitimate multi-word Title-Case sequence an advice item is allowed to contain: the
     startup's own name, plus anything already present anywhere in the deterministic baseline
-    (rubric dimension labels like "Problem Clarity", capability labels, the venture positioning
-    domain, any founder-submitted competitor name already recorded in competitor_landscape, etc.)
-    — since none of that was invented by Gemini, it's definitionally safe. Anything else that
-    looks like a two-or-more-word proper noun is treated as a possible invented company/claim."""
+    (rubric dimension labels, capability labels, the venture positioning domain, any
+    founder-submitted competitor name already recorded, etc.) — since none of that was invented by
+    Gemini, it's definitionally safe. Anything else that looks like a two-or-more-word proper noun
+    is treated as a possible invented company/claim."""
     known: set[str] = set()
     known |= _title_case_sequences_in(startup_name)
     known |= _title_case_sequences_in(json.dumps(baseline))
     return known
 
 
-def merge_gemini_narrative_into_baseline(
-    gemini: GeminiMentorInterpretation, baseline: dict, startup_name: str, startup_description: str
-) -> dict | None:
-    """Returns the merged mentor dict, or None if the response fails any safety check (callers
-    must fall back to the untouched `baseline` in that case)."""
+def _safe_advice_items(
+    advice: GeminiMentorAdvice, baseline: dict, startup_name: str, startup_description: str
+) -> list[dict]:
+    """Filter Gemini's proposed advice items down to only those that pass every safety check,
+    independently per item. Returns plain dicts ready to attach to the mentor result."""
     allowed_numbers = _numbers_in(startup_description) | _numbers_in(json.dumps(baseline))
-    gemini_text = _all_gemini_text(gemini)
-    if _numbers_in(gemini_text) - allowed_numbers:
-        logger.info("Gemini mentor response rejected: introduced an unsupported numeric claim")
-        return None
-
     known_names = _known_names_from_baseline(baseline, startup_name)
-    for sequence in _title_case_sequences_in(gemini_text):
-        if sequence not in known_names:
-            logger.info("Gemini mentor response rejected: unattested proper-noun sequence %r", sequence)
-            return None
 
-    merged = dict(baseline)
-    merged["idea_understanding"] = {
-        "summary": gemini.idea_summary,
-        "target_user": gemini.idea_target_user,
-        "problem": gemini.idea_problem,
-        "proposed_solution": gemini.idea_proposed_solution,
-        "business_context": gemini.idea_business_context,
-    }
-    merged["customer_and_market"] = gemini.customer_and_market
-    merged["business_model"] = gemini.business_model
-    merged["competitor_landscape"] = gemini.competitor_landscape
-    merged["revenue_scenarios"] = gemini.revenue_scenarios
-    merged["mentor_verdict"] = {
-        **baseline["mentor_verdict"],
-        "concise_verdict": gemini.concise_verdict,
-        "strongest_signal": gemini.strongest_signal,
-        "biggest_risk": gemini.biggest_risk,
-        "immediate_priority": gemini.immediate_priority,
-    }
-    merged["mvp_recommendation"] = {
-        **baseline["mvp_recommendation"],
-        "single_core_problem": gemini.mvp_single_core_problem,
-        "minimum_workflow": gemini.mvp_minimum_workflow,
-        "success_metric": gemini.mvp_success_metric,
-        "pilot_environment": gemini.mvp_pilot_environment,
-        "reasons": gemini.mvp_reasons or baseline["mvp_recommendation"]["reasons"],
-    }
-    merged["source"] = "gemini"
-    merged["source_attribution"] = {
-        **baseline["source_attribution"],
-        "idea_understanding": "Gemini rephrasing of deterministic facts (schema/safety-validated)",
-        "customer_and_market": "Gemini rephrasing of deterministic facts (schema/safety-validated)",
-        "business_model": "Gemini rephrasing of deterministic facts (schema/safety-validated)",
-        "competitor_landscape": "Gemini rephrasing of deterministic facts (schema/safety-validated)",
-        "revenue_scenarios": "Gemini rephrasing of deterministic facts (schema/safety-validated)",
-        "mentor_verdict": "Gemini rephrasing of deterministic facts (schema/safety-validated); readiness_level unchanged",
-        "mvp_recommendation": "Gemini rephrasing of deterministic facts (schema/safety-validated); scope/capabilities unchanged",
-    }
-    return merged
+    safe_items: list[dict] = []
+    for item in advice.advice:
+        if _numbers_in(item.text) - allowed_numbers:
+            logger.info("Gemini mentor advice item rejected: introduced an unsupported numeric claim")
+            continue
+        unattested = [seq for seq in _title_case_sequences_in(item.text) if seq not in known_names]
+        if unattested:
+            logger.info("Gemini mentor advice item rejected: unattested proper-noun sequence %r", unattested)
+            continue
+        if _CITATION_CLAIM_PATTERN.search(item.text):
+            logger.info("Gemini mentor advice item rejected: citation/research-claim pattern")
+            continue
+        safe_items.append(item.model_dump())
+    return safe_items
 
 
 def build_mentor_context(startup_name: str, startup_description: str, baseline: dict) -> MentorContext:
-    """Build the `MentorContext` sent to the optional Gemini mentor reviewer from an already-built
+    """Build the `MentorContext` sent to the optional Gemini mentor advisor from an already-built
     deterministic baseline (see app.agents.mentor_synthesis.build_deterministic_mentor). Shared by
     both the orchestrator's `mentor_synthesis_node` (a fresh analysis run) and
     app.services.analysis_service's regeneration helpers (a founder-triggered positioning/revenue
@@ -162,20 +119,24 @@ def build_mentor_context(startup_name: str, startup_description: str, baseline: 
 
 
 def review_mentor_safely(context: MentorContext, baseline: dict, startup_name: str, startup_description: str) -> dict:
-    """Never raises. Returns `baseline` unchanged unless Gemini is configured, responds, passes
-    schema validation, and passes every safety check above."""
+    """Never raises. Always returns the deterministic `baseline` with `mentor_advice_items` set —
+    empty unless Gemini is configured, responds, passes schema validation, and at least one item
+    passes every safety check above. `source` and every other baseline field are never altered."""
+    result = dict(baseline)
+    result.setdefault("mentor_advice_items", [])
+
     provider = get_llm_provider()
     if provider is None:
-        return baseline
+        return result
 
     try:
-        gemini_response = provider.generate_mentor_interpretation(context)
+        gemini_response = provider.generate_mentor_advice(context)
     except LLMUnavailable as exc:
-        logger.info("Gemini mentor reviewer unavailable, falling back to deterministic mentor: %s", exc)
-        return baseline
+        logger.info("Gemini mentor advisor unavailable, proceeding with no advice items: %s", exc)
+        return result
     except Exception:
-        logger.exception("Unexpected error calling the Gemini mentor reviewer; falling back to deterministic mentor")
-        return baseline
+        logger.exception("Unexpected error calling the Gemini mentor advisor; proceeding with no advice items")
+        return result
 
-    merged = merge_gemini_narrative_into_baseline(gemini_response, baseline, startup_name, startup_description)
-    return merged if merged is not None else baseline
+    result["mentor_advice_items"] = _safe_advice_items(gemini_response, baseline, startup_name, startup_description)
+    return result

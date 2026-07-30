@@ -7,6 +7,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.database.session import get_db
 from app.main import app
+from tests.conftest import wait_for_terminal_analysis
 
 
 def test_database_unavailable_returns_503():
@@ -43,10 +44,10 @@ def test_industry_classifier_unavailable_does_not_crash_analyze(client, monkeypa
 
     response = client.post(f"/api/v1/startups/{startup_id}/analyze")
     assert response.status_code == 201
-    body = response.json()
+    body = wait_for_terminal_analysis(client, response.json()["id"])
     assert body["status"] == "COMPLETED"
     assert body["industry_prediction"] is None
-    assert "not classified" in body["judge_summary"]["overall_assessment"]
+    assert "couldn't confidently place this in a specific industry" in body["judge_summary"]["overall_assessment"]
 
 
 def test_malformed_json_body_returns_422(client):

@@ -3,6 +3,7 @@ import type {
   CompanyMetrics,
   CustomerRFMInput,
   FundingAnswers,
+  IndustryPreview,
   MarketEvidence,
   ModelStatus,
   RevenueAssumptions,
@@ -83,6 +84,14 @@ export function getAnalysis(analysisId: string): Promise<Analysis> {
   return request<Analysis>(`/analyses/${analysisId}`);
 }
 
+/** Act IV (The Forging) — Server-Sent Events URL for the real, incrementally-persisted analysis
+ * row (see backend/app/api/v1/analyses.py's `stream_analysis_events`). Returns a URL rather than
+ * a Promise since this is consumed by the browser's native `EventSource`, not `fetch` — see
+ * hooks/useAnalysisProgress.ts. */
+export function analysisEventsUrl(analysisId: string): string {
+  return `${BASE_URL}/analyses/${analysisId}/events`;
+}
+
 /** Founder-submitted correction to venture_positioning only, from the controlled taxonomy list —
  * see backend/app/api/v1/analyses.py's `/industry-correction` route. Never touches model_category. */
 export function correctIndustry(
@@ -111,6 +120,15 @@ export function saveRevenueAssumptions(
   return request<Analysis>(`/analyses/${analysisId}/revenue-assumptions`, {
     method: "PATCH",
     body: JSON.stringify(payload),
+  });
+}
+
+/** Live, read-only Discovery preview — see backend/app/api/v1/predict.py. Never creates a
+ * Startup; safe to call repeatedly while the founder is still typing. */
+export function previewIndustry(name: string, description: string): Promise<IndustryPreview> {
+  return request<IndustryPreview>("/predict/industry", {
+    method: "POST",
+    body: JSON.stringify({ name, description }),
   });
 }
 

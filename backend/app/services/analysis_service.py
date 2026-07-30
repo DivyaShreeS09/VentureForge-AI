@@ -2,22 +2,25 @@
 
 from __future__ import annotations
 
+import logging
+import threading
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.agents.idea_expansion import build_deterministic_idea_expansion
 from app.agents.idea_expansion_reviewer import build_idea_expansion_context, generate_idea_expansion_safely
 from app.agents.mentor_reviewer import build_mentor_context, review_mentor_safely
 from app.agents.mentor_synthesis import build_deterministic_mentor
-from app.agents.orchestrator import run_pipeline
+from app.agents.orchestrator import stream_pipeline
+from app.agents.stage_labels import stage_label_for
 from app.agents.strategic_opportunity import build_deterministic_strategic_opportunity
 from app.agents.strategic_opportunity_reviewer import (
     build_strategic_opportunity_context,
     generate_strategic_opportunity_safely,
 )
-from app.agents.state import OrchestratorState
 from app.agents.venture_positioning import build_model_category, resolve_venture_positioning
 from app.ml.positioning_taxonomy import TAXONOMY_VERSION, score_taxonomy
 from app.ml.revenue_scenario import estimate_revenue_scenario
@@ -25,6 +28,9 @@ from app.models.analysis import Analysis
 from app.models.startup import Startup
 from app.schemas.startup import StartupCreateRequest
 from app.schemas.student3 import Student3Outputs
+from app.services import analysis_events
+
+logger = logging.getLogger(__name__)
 
 
 def _regenerate_mentor_interpretation(analysis: Analysis, startup: Startup | None) -> dict | None:
@@ -157,76 +163,175 @@ def get_analysis(db: Session, analysis_id: uuid.UUID) -> Analysis | None:
     return db.get(Analysis, analysis_id)
 
 
-def run_analysis_for_startup(db: Session, startup: Startup) -> Analysis:
-    """Run the orchestrator synchronously and persist the result as a new Analysis row."""
+def start_analysis_for_startup(db: Session, startup: Startup, session_factory: sessionmaker) -> Analysis:
+    """Act IV (The Forging): creates the Analysis row and returns it immediately (status
+    RUNNING, no fields populated yet) — the real orchestrator run happens in a background thread
+    (`_execute_analysis_stream`), reusing the exact same compiled graph as the synchronous
+    `run_pipeline` (via `stream_pipeline`), just observed and persisted incrementally after every
+    real node completes instead of only once at the end. This is what lets the frontend show
+    genuine, real intermediate progress instead of one long blocking call followed by an
+    all-at-once reveal.
+    """
     now = datetime.now(timezone.utc)
-    analysis = Analysis(startup_id=startup.id, status="PENDING", created_at=now, updated_at=now)
+    analysis = Analysis(startup_id=startup.id, status="RUNNING", created_at=now, updated_at=now)
     db.add(analysis)
     db.commit()
     db.refresh(analysis)
 
-    def persist(state: OrchestratorState) -> None:
+    thread = threading.Thread(
+        target=_execute_analysis_stream,
+        args=(
+            analysis.id,
+            startup.name,
+            startup.description,
+            startup.funding_answers,
+            startup.company_metrics,
+            startup.revenue_assumptions,
+            startup.market_evidence,
+            startup.customer_rfm,
+            session_factory,
+        ),
+        daemon=True,
+    )
+    thread.start()
+    return analysis
+
+
+def _execute_analysis_stream(
+    analysis_id: uuid.UUID,
+    startup_name: str,
+    startup_description: str,
+    funding_answers: dict[str, Any],
+    company_metrics: dict[str, Any],
+    revenue_assumptions: dict[str, Any],
+    market_evidence: dict[str, Any],
+    customer_rfm: dict[str, float] | None,
+    session_factory: sessionmaker,
+) -> None:
+    """Runs on a background thread with its own DB session (a request-scoped session can't cross
+    threads). Consumes `stream_pipeline`'s real per-node updates, merges each into a running
+    cumulative state (mirroring the `trace` key's additive-reducer semantics LangGraph itself
+    applies during a normal `.invoke()` — `stream_mode="updates"` intentionally yields each node's
+    own raw delta, not the pre-merged state), persists the real, currently-known fields after
+    every single node, and wakes any SSE subscriber via `analysis_events.publish`.
+    """
+    db = session_factory()
+    accumulated: dict[str, Any] = {"trace": []}
+    try:
+        for node_name, delta in stream_pipeline(
+            startup_name=startup_name,
+            startup_description=startup_description,
+            funding_answers=funding_answers,
+            company_metrics=company_metrics,
+            revenue_assumptions=revenue_assumptions,
+            market_evidence=market_evidence,
+            customer_rfm=customer_rfm,
+        ):
+            for key, value in delta.items():
+                if key == "trace":
+                    accumulated.setdefault("trace", []).extend(value)
+                else:
+                    accumulated[key] = value
+            _persist_progress(db, analysis_id, node_name, accumulated)
+            analysis_events.publish(str(analysis_id), {"node": node_name})
+            # "persistence" is the graph's single terminal-status node (see
+            # orchestrator.py's `_make_persistence_node`) — the only node after it,
+            # "final_response", only formats a trace entry and changes nothing a founder needs to
+            # see. Stopping here (rather than continuing to pull one more, meaningless update from
+            # the generator) avoids a harmless-but-real race: a caller who already observed the
+            # terminal status via GET/SSE may reasonably consider the run finished and tear down
+            # resources (exactly what the test suite does) before this thread gets to it.
+            if node_name == "persistence":
+                break
+    except Exception as exc:  # noqa: BLE001 - a background thread must never crash silently and
+        # leave an analysis permanently stuck "RUNNING"; this is the one intentional bare-except
+        # here, mirroring orchestrator.py's own single bare-except for the optional LLM layer.
+        logger.exception("Unexpected error during background analysis run for %s", analysis_id)
+        analysis = db.get(Analysis, analysis_id)
+        if analysis is not None:
+            analysis.status = "FAILED"
+            analysis.error_message = f"Unexpected error: {exc}"
+            analysis.updated_at = datetime.now(timezone.utc)
+            db.add(analysis)
+            db.commit()
+        analysis_events.publish(str(analysis_id), {"node": "error"})
+    finally:
+        db.close()
+
+
+def _persist_progress(db: Session, analysis_id: uuid.UUID, node_name: str, state: dict[str, Any]) -> None:
+    """Persists whichever real fields are present in the cumulative state so far — every field
+    here is one `Analysis` already stores (see `run_analysis_for_startup`'s pre-Sprint-6
+    equivalent, now applied per-node instead of once). Never invents an "intermediate_outputs"
+    blob: a founder sees `industry_prediction` the moment industry classification really
+    finishes, `judge_summary` the moment the Judge really finishes, and so on."""
+    analysis = db.get(Analysis, analysis_id)
+    if analysis is None:
+        return
+
+    analysis.current_node = node_name
+    analysis.current_stage = stage_label_for(node_name)
+
+    if "industry_prediction" in state:
         industry = state.get("industry_prediction")
-        funding = state.get("funding_assessment")
-        analysis.status = state.get("status", "FAILED")
         analysis.industry_prediction = industry
         analysis.industry_model_version = industry.get("model_version") if industry else None
+    if "funding_assessment" in state:
+        funding = state.get("funding_assessment")
         analysis.funding_assessment = funding
         analysis.funding_rubric_version = funding.get("rubric_version") if funding else None
-
+    if "success_prediction" in state:
         success_prediction = state.get("success_prediction")
         analysis.success_prediction = success_prediction
         analysis.success_model_version = success_prediction.get("model_version") if success_prediction else None
-
+    if "revenue_estimate" in state:
         revenue_estimate = state.get("revenue_estimate")
         analysis.revenue_estimate = revenue_estimate
         analysis.revenue_engine_version = revenue_estimate.get("engine_version") if revenue_estimate else None
-
+    if "market_intelligence" in state:
         analysis.market_intelligence = state.get("market_intelligence")
+    if "competitor_analysis" in state:
         analysis.competitor_analysis = state.get("competitor_analysis")
+    if "customer_personas" in state:
         analysis.customer_personas = state.get("customer_personas")
+    if "business_model" in state:
         analysis.business_model = state.get("business_model")
-
+    if "judge_summary" in state:
         analysis.judge_summary = state.get("judge_summary")
+    if "mentor_interpretation" in state:
         analysis.mentor_interpretation = state.get("mentor_interpretation")
+    if "idea_expansion" in state:
         analysis.idea_expansion = state.get("idea_expansion")
+    if "strategic_opportunity" in state:
         analysis.strategic_opportunity = state.get("strategic_opportunity")
 
-        # Phase 5 (Student 3): additive growth/strategy intelligence — see app.agents.student3.
-        # Only assembled for a run that reached funding_readiness (customer_segment is always a
-        # dict once that node has run); null for a run that failed before then.
-        customer_segment = state.get("customer_segment")
-        if customer_segment is not None:
-            analysis.student3_outputs = Student3Outputs(
-                customer_segment=customer_segment,
-                ranked_actions=state.get("ranked_actions") or [],
-                innovation_opportunities=state.get("innovation_opportunities") or [],
-                risks=state.get("risk_assessment") or [],
-                growth_strategy=state.get("growth_strategy") or [],
-                pitch_deck=state.get("pitch_deck") or [],
-                executive_summary=[(state.get("judge_summary") or {}).get("overall_assessment", "")],
-            ).model_dump()
-        else:
-            analysis.student3_outputs = None
+    # Phase 5 (Student 3): rebuilt on every node from this point on so it progressively fills in
+    # (ranked_actions/risks/etc. each arrive from a later node) rather than appearing all at once.
+    customer_segment = state.get("customer_segment")
+    if customer_segment is not None:
+        analysis.student3_outputs = Student3Outputs(
+            customer_segment=customer_segment,
+            ranked_actions=state.get("ranked_actions") or [],
+            innovation_opportunities=state.get("innovation_opportunities") or [],
+            risks=state.get("risk_assessment") or [],
+            growth_strategy=state.get("growth_strategy") or [],
+            pitch_deck=state.get("pitch_deck") or [],
+            executive_summary=[(state.get("judge_summary") or {}).get("overall_assessment", "")],
+        ).model_dump()
 
-        analysis.workflow_trace = state.get("trace")
+    analysis.workflow_trace = state.get("trace")
+    if state.get("error"):
         analysis.error_message = state.get("error")
-        analysis.updated_at = datetime.now(timezone.utc)
-        db.add(analysis)
-        db.commit()
 
-    run_pipeline(
-        startup_name=startup.name,
-        startup_description=startup.description,
-        funding_answers=startup.funding_answers,
-        persist_fn=persist,
-        company_metrics=startup.company_metrics,
-        revenue_assumptions=startup.revenue_assumptions,
-        market_evidence=startup.market_evidence,
-        customer_rfm=startup.customer_rfm,
-    )
-    db.refresh(analysis)
-    return analysis
+    # The "persistence" node is the single place the graph decides the terminal status (see
+    # orchestrator.py's `_make_persistence_node`) — its own delta always carries the real,
+    # authoritative COMPLETED/FAILED value.
+    if node_name == "persistence":
+        analysis.status = state.get("status", "FAILED")
+
+    analysis.updated_at = datetime.now(timezone.utc)
+    db.add(analysis)
+    db.commit()
 
 
 def apply_industry_correction(

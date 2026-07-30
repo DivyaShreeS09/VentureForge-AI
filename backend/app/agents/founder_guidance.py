@@ -111,6 +111,26 @@ _CATEGORY_URGENCY: dict[str, int] = {
 }
 
 
+# Founder Consulting Experience Sprint — a coarse, disclosed planning estimate (never a fabricated
+# statistic) for the merged Founder Strategy section: how much this category of gap typically
+# matters (impact) if left unresolved. Reuses the exact same urgency ranking `_CATEGORY_URGENCY`
+# already encodes, just relabeled for founder-facing display.
+_IMPACT_BY_CATEGORY: dict[str, str] = {
+    "confirmed_risk": "High",
+    "validation_opportunity": "High",
+    "discovery_question": "Medium",
+    "improvement_opportunity": "Medium",
+    "future_enhancement": "Low",
+    "strength": "Low",
+}
+
+
+def impact_for_category(category: str) -> str:
+    """Public so app.agents.mentor_synthesis's Founder Strategy builder can label impact using the
+    same category ranking every other prioritization in this product already shares."""
+    return _IMPACT_BY_CATEGORY.get(category, "Medium")
+
+
 def score_item(category: str, weight: float) -> float:
     """Public so callers merging in non-rubric items (e.g. capability-library-derived guidance in
     app.agents.mentor_synthesis) can rank them on the exact same scale, keeping one single
@@ -152,7 +172,7 @@ def _category_for(state: str, severity: int | None, dimension: str) -> str | Non
 _EARLY_STAGE_KEYWORDS = ("idea", "unspecified")
 
 
-def _build_item(breakdown_item: dict, stage: str | None) -> dict | None:
+def _build_item(breakdown_item: dict, stage: str | None, vocab: dict[str, str] | None = None) -> dict | None:
     dimension = breakdown_item["dimension"]
     state = breakdown_item["state"]
     severity = breakdown_item.get("raw_score")
@@ -164,16 +184,17 @@ def _build_item(breakdown_item: dict, stage: str | None) -> dict | None:
         content = _POSITIVE_CONTENT[dimension][severity]
         title, why_it_matters, next_step = content["title"], content["why_it_matters"], content["next_step"]
     else:
-        hyp = build_hypothesis(dimension)
+        hyp = build_hypothesis(dimension, vocab)
+        readable_label = breakdown_item["label"].lower()
         title = {
-            "discovery_question": f"{breakdown_item['label']} is a discovery question, not a weakness.",
-            "validation_opportunity": f"{breakdown_item['label']} is your next validation opportunity.",
-        }.get(category, f"{breakdown_item['label']} needs attention.")
+            "discovery_question": f"You don't know your {readable_label} yet — and that's a question to answer, not a weakness.",
+            "validation_opportunity": f"Your {readable_label} is the next thing worth validating.",
+        }.get(category, f"Your {readable_label} still needs some attention.")
         why_it_matters = hyp["starting_hypothesis"]
         next_step = hyp["validation_task"]
         is_early_stage = not stage or any(kw in stage.lower() for kw in _EARLY_STAGE_KEYWORDS)
         if category in ("discovery_question", "validation_opportunity") and is_early_stage:
-            why_it_matters += " This is completely normal at this early a stage — it isn't a flaw in the idea."
+            why_it_matters += " This is completely normal this early on — it isn't a flaw in the idea."
 
     return {
         "dimension": dimension,
@@ -191,7 +212,9 @@ def _build_item(breakdown_item: dict, stage: str | None) -> dict | None:
     }
 
 
-def build_founder_guidance_items(funding_assessment: dict, market_evidence: dict | None = None) -> list[dict]:
+def build_founder_guidance_items(
+    funding_assessment: dict, market_evidence: dict | None = None, vocab: dict[str, str] | None = None
+) -> list[dict]:
     """Build one structured guidance item per applicable funding-readiness dimension (excludes
     `not_applicable`). Priority is assigned relative to these rubric items only — see
     `finalize_priority` for re-ranking once app.agents.mentor_synthesis merges in
@@ -200,11 +223,16 @@ def build_founder_guidance_items(funding_assessment: dict, market_evidence: dict
     `market_evidence.startup_stage` (if supplied) only ever softens coaching language for an
     early-stage venture — it never changes a dimension's assigned category (see
     `_NEGATIVE_CATEGORY`).
+
+    `vocab` (see app.agents.venture_vocabulary.vocab_for) adapts a small number of hypothesis-engine
+    templates' noun choice to the venture's category — optional and additive; omitting it reproduces
+    the exact generic text this always produced (Critical Fix #2/#5, Product Intelligence
+    Refinement Sprint).
     """
     stage = (market_evidence or {}).get("startup_stage")
     items = [
         item
-        for item in (_build_item(b, stage) for b in funding_assessment.get("breakdown", []))
+        for item in (_build_item(b, stage, vocab) for b in funding_assessment.get("breakdown", []))
         if item is not None
     ]
     return finalize_priority(items)

@@ -150,8 +150,9 @@ GENERIC_DISCOVERY_STAGE_DEFAULT: dict = {
     "initial_customers": 5,
     "monthly_growth_rate_pct": 5.0,
     "gross_margin_pct": 60.0,
-    "explanation": "No domain-specific or category-specific default was available yet — this is a "
-    "generic, deliberately conservative discovery-stage placeholder, not a researched figure.",
+    "explanation": "I don't have a specific starting point for your exact space yet, so this is a "
+    "deliberately conservative discovery-stage placeholder — a rough starting point to edit, not a "
+    "researched figure.",
 }
 
 

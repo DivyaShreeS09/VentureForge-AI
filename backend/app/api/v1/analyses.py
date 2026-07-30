@@ -1,13 +1,18 @@
+import json
+import queue
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session, sessionmaker
 
-from app.database.session import get_db
+from app.database.session import get_db, get_session_factory
 from app.schemas.analysis import AnalysisResponse, IndustryCorrectionRequest, RevenueAssumptionsPatchRequest
-from app.services import analysis_service
+from app.services import analysis_events, analysis_service
 
 router = APIRouter(prefix="/analyses", tags=["analyses"])
+
+_TERMINAL_STATUSES = ("COMPLETED", "FAILED")
 
 
 @router.get("/{analysis_id}", response_model=AnalysisResponse)
@@ -16,6 +21,57 @@ def get_analysis(analysis_id: uuid.UUID, db: Session = Depends(get_db)) -> Analy
     if analysis is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Analysis not found")
     return AnalysisResponse.model_validate(analysis)
+
+
+@router.get("/{analysis_id}/events")
+def stream_analysis_events(
+    analysis_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    session_factory: sessionmaker = Depends(get_session_factory),
+):
+    """Act IV (The Forging): Server-Sent Events stream of the real Analysis row, re-emitted every
+    time the background analysis thread (see app.services.analysis_service) persists a newly
+    completed node — not a simulated or timed progress feed. Always emits the current real state
+    first (covers a reconnect, or a run that was already finished before the client subscribed),
+    then blocks on `analysis_events` until the next real update or a periodic heartbeat comment
+    (a plain SSE keep-alive, never progress data) so intermediate proxies don't time out the
+    connection. Closes once the analysis reaches a terminal status. `GET /analyses/{id}` above
+    remains available as a plain-poll fallback and for the final full fetch.
+    """
+    analysis = analysis_service.get_analysis(db, analysis_id)
+    if analysis is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Analysis not found")
+
+    def _snapshot() -> dict:
+        session = session_factory()
+        try:
+            row = analysis_service.get_analysis(session, analysis_id)
+            return AnalysisResponse.model_validate(row).model_dump(mode="json")
+        finally:
+            session.close()
+
+    def event_stream():
+        payload = _snapshot()
+        yield f"data: {json.dumps(payload)}\n\n"
+        if payload["status"] in _TERMINAL_STATUSES:
+            return
+
+        q = analysis_events.subscribe(str(analysis_id))
+        try:
+            while True:
+                try:
+                    q.get(timeout=15)
+                except queue.Empty:
+                    yield ": heartbeat\n\n"
+                    continue
+                payload = _snapshot()
+                yield f"data: {json.dumps(payload)}\n\n"
+                if payload["status"] in _TERMINAL_STATUSES:
+                    break
+        finally:
+            analysis_events.unsubscribe(str(analysis_id), q)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/{analysis_id}/industry-correction", response_model=AnalysisResponse)

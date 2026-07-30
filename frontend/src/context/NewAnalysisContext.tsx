@@ -15,10 +15,13 @@ import type {
  * classifier input honestly, without inventing a backend field that doesn't exist. */
 export interface IdeaFields {
   name: string;
-  onePitch: string;
   problemSolution: string;
-  industryMarket: string;
   targetCustomer: string;
+  /** Real, backend-derived deployment-sector hints (see IndustryPreview.customer_hints) the
+   * founder confirmed apply — capped at 2, oldest deselects first (Design System Bible §7's
+   * multi-select choice-card rule). Never a fabricated "customer segment" — only sectors the
+   * classifier's own keyword extraction actually matched in this founder's own description. */
+  customerSegments: string[];
   currentStage: string;
 }
 
@@ -28,14 +31,14 @@ export interface NewAnalysisState {
   companyMetrics: CompanyMetrics;
   revenueAssumptions: RevenueAssumptions;
   marketEvidence: MarketEvidence;
+  mode: "beginner" | "advanced";
 }
 
 const EMPTY_IDEA: IdeaFields = {
   name: "",
-  onePitch: "",
   problemSolution: "",
-  industryMarket: "",
   targetCustomer: "",
+  customerSegments: [],
   currentStage: "",
 };
 
@@ -43,7 +46,14 @@ const EMPTY_COMPANY_METRICS: CompanyMetrics = {};
 const EMPTY_REVENUE_ASSUMPTIONS: RevenueAssumptions = {};
 const EMPTY_MARKET_EVIDENCE: MarketEvidence = { known_competitors: [] };
 
-const STORAGE_KEY = "ventureforge.newAnalysis.v1";
+/** Founder Input Experience Redesign: a single global mode, not a per-screen setting. Beginner
+ * (the default) never shows a field or a term the audit flagged as jargon-only-useful-when-known
+ * (funding history, growth-rate/margin percentages, TAM/SAM/SOM); Advanced reveals them for a
+ * founder who already knows these numbers. Both modes write to the exact same backend schema —
+ * switching modes never changes what gets submitted, only what's asked to produce it. */
+export type InputMode = "beginner" | "advanced";
+
+const STORAGE_KEY = "ventureforge.newAnalysis.v2";
 
 function emptyState(): NewAnalysisState {
   return {
@@ -52,6 +62,7 @@ function emptyState(): NewAnalysisState {
     companyMetrics: EMPTY_COMPANY_METRICS,
     revenueAssumptions: EMPTY_REVENUE_ASSUMPTIONS,
     marketEvidence: EMPTY_MARKET_EVIDENCE,
+    mode: "beginner",
   };
 }
 
@@ -66,6 +77,7 @@ function loadInitial(): NewAnalysisState {
       companyMetrics: parsed.companyMetrics ?? EMPTY_COMPANY_METRICS,
       revenueAssumptions: parsed.revenueAssumptions ?? EMPTY_REVENUE_ASSUMPTIONS,
       marketEvidence: parsed.marketEvidence ?? EMPTY_MARKET_EVIDENCE,
+      mode: parsed.mode === "advanced" ? "advanced" : "beginner",
     };
   } catch {
     return emptyState();
@@ -78,12 +90,20 @@ interface Ctx {
   companyMetrics: CompanyMetrics;
   revenueAssumptions: RevenueAssumptions;
   marketEvidence: MarketEvidence;
+  mode: InputMode;
+  setMode: (mode: InputMode) => void;
   updateIdea: (patch: Partial<IdeaFields>) => void;
   updateFunding: (key: keyof FundingAnswers, value: DimensionEvidence) => void;
   updateCompanyMetrics: (patch: Partial<CompanyMetrics>) => void;
   updateRevenueAssumptions: (patch: Partial<RevenueAssumptions>) => void;
   updateMarketEvidence: (patch: Partial<MarketEvidence>) => void;
   buildDescription: () => string;
+  /** The final `market_evidence` payload to submit — merges the structural fields Discovery
+   * already collected (`customer_type` from "who buys this", `startup_stage` from "where are you
+   * right now", `target_market` from the confirmed sector chips) with whatever Additional Details
+   * added, so a founder is never asked the same real-world question twice on two different screens
+   * (Founder Input Experience Redesign audit finding #1). */
+  buildMarketEvidence: () => MarketEvidence;
   reset: () => void;
 }
 
@@ -107,6 +127,8 @@ export function NewAnalysisProvider({ children }: { children: ReactNode }) {
       companyMetrics: state.companyMetrics,
       revenueAssumptions: state.revenueAssumptions,
       marketEvidence: state.marketEvidence,
+      mode: state.mode,
+      setMode: (mode) => setState((prev) => ({ ...prev, mode })),
       updateIdea: (patch) => setState((prev) => ({ ...prev, idea: { ...prev.idea, ...patch } })),
       updateFunding: (key, value) =>
         setState((prev) => ({ ...prev, fundingAnswers: { ...prev.fundingAnswers, [key]: value } })),
@@ -117,11 +139,20 @@ export function NewAnalysisProvider({ children }: { children: ReactNode }) {
       updateMarketEvidence: (patch) =>
         setState((prev) => ({ ...prev, marketEvidence: { ...prev.marketEvidence, ...patch } })),
       buildDescription: () => {
-        const { onePitch, problemSolution, industryMarket, targetCustomer, currentStage } = state.idea;
-        return [onePitch, problemSolution, industryMarket, targetCustomer, currentStage]
+        const { problemSolution, targetCustomer, currentStage } = state.idea;
+        return [problemSolution, targetCustomer, currentStage]
           .map((s) => s.trim())
           .filter(Boolean)
           .join(" ");
+      },
+      buildMarketEvidence: () => {
+        const { targetCustomer, customerSegments, currentStage } = state.idea;
+        return {
+          ...state.marketEvidence,
+          customer_type: state.marketEvidence.customer_type || targetCustomer.trim() || null,
+          target_market: state.marketEvidence.target_market || (customerSegments.length > 0 ? customerSegments.join(", ") : null),
+          startup_stage: state.marketEvidence.startup_stage || currentStage || null,
+        };
       },
       reset: () => {
         setState(emptyState());

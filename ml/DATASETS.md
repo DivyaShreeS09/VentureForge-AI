@@ -1003,6 +1003,630 @@ Customer-segmentation method comparison uses the [UCI Online Retail dataset](htt
 
 The raw workbook and trained artifacts are never committed. A versioned local artifact can assign a segment only when the caller supplies customer-level `recency_days`, `frequency`, and `monetary` inputs (`backend/app/schemas/startup.CustomerRFMInput`); otherwise `backend/app/agents/student3.customer_segment` reports the segmentation model as unavailable instead of fabricating a fallback segment.
 
+## Fine-Grained Subindustry Taxonomy — Evaluated and Rejected (Final ML Excellence Sprint)
+
+**Mission of this pass**: determine whether the current dataset is the limiting factor on
+industry-classification quality, and whether a finer-grained (30-60 class) taxonomy — as opposed to
+the current 7-class one — is scientifically supportable, per this project's rule that a proposed
+improvement must be rejected and explained if the data cannot support it.
+
+**Dataset audit (Phase 1) reconfirmed, not repeated**: the complete dataset audit (size, class
+distribution, imbalance, duplicates, conflicting labels, missing values, leakage, annotation
+quality) for every ML dataset in this project was already performed exhaustively in the sections
+above ("Label-Quality Audit (v2)", "ML Audit Findings") and remains current — reconfirmed by
+re-inspecting `ml/models/industry_classifier/v2/metadata.json` (`trained_at`
+2026-07-18T18:40:29Z, `using_real_dataset: true`, 7 labels, gold-set exclusion intact) before this
+pass began. Nothing has changed since that audit; it is not repeated here.
+
+**Dataset search (Phase 2) reconfirmed, not repeated**: the "Industry Classification — Datasets
+Evaluated" and "Startup Success Prediction — Datasets Evaluated" tables above, plus the
+"Supplementary Dataset Search" section, already document an exhaustive Kaggle/public-dataset search
+across both tasks with explicit rejection reasoning per candidate. No new superior real, licensed
+dataset was identified this pass. **Conclusion: the dataset is not the limiting factor** — it is
+already the best available real, legally-clean option, chosen via documented comparison against
+rejected alternatives, not by default.
+
+**Phase 3 — a genuinely new taxonomy candidate, found by re-reading the existing raw file more
+carefully.** The raw YC export (`ml/data/raw/yc_companies_2012_2024_raw.csv`) has a `subindustry`
+column — real ground truth, not fabricated — with 58 raw values shaped as a real two-level
+hierarchy (`"ParentCategory -> Subcategory"`, e.g. `"Healthcare -> Diagnostics"`). Applying the
+existing project convention (MIN_CLASS_SAMPLES=50, exclude "Unspecified") yields **34 classes**
+covering 3,755 of 4,522 rows (83%) — squarely inside the sprint's requested 30-60 class range, and
+built from real per-company subindustry assignments YC itself made, not an invented split.
+
+**Experiment** (`ml/src/preprocessing/subindustry_taxonomy_experiment.py`, reproducible via
+`python -m ml.src.preprocessing.subindustry_taxonomy_experiment`): gold-set rows excluded by exact
+description match (same leakage rule as production), 5-fold stratified CV comparing a dummy
+baseline, word-only TF-IDF+LogReg, and the already-proven word+char TF-IDF+balanced-LogReg family
+(no need to re-run the full 9-algorithm comparison — that family has already been established as
+the ceiling for this exact corpus/register in the sections above; the question here is whether the
+*labels* support classification at all, not whether a different algorithm would help), then one
+held-out test evaluation and one independent gold-subset evaluation.
+
+| Metric | 7-class production model (`v2`) | 34-class subindustry candidate |
+|---|---|---|
+| CV macro-F1 | 0.738 ± 0.026 | **0.440 ± 0.026** |
+| Test accuracy / macro-F1 | 0.806 / 0.776 | **0.434 / 0.458** |
+| Gold-set accuracy / macro-F1 | 0.757 / 0.766 | **0.449 / 0.261** |
+| Mean top-1 confidence (test) | not directly comparable (7-way) | **0.186** — barely above 1/34≈0.029 chance, far below genuine confidence |
+
+**Result: REJECTED.** Three concrete, evidenced reasons, not a vague "didn't work":
+
+1. **Bare parent labels collide with their own children.** Companies YC left at the parent level
+   (`"B2B"`, `"Healthcare"`, `"Consumer"`, `"Fintech"` — no subcategory assigned) are the worst-
+   performing classes (test F1 0.122–0.333) because they use the *same* generic vocabulary as their
+   own subcategories (e.g. bare `"B2B"` vs. `"B2B -> Engineering, Product and Design"`) — a
+   structural class-boundary conflict baked into the label scheme itself, not fixable by more data
+   or a better model.
+2. **Catastrophic gold-set generalization gap.** Test macro-F1 (0.458) already trails the 7-class
+   model badly, but gold-subset macro-F1 collapses further to 0.261 — a 0.20-point drop from test to
+   gold (the 7-class model's equivalent drop is +0.01, i.e. no drop). This is the same
+   "looks fine on the touched split, fails on the untouched gold set" pattern that has correctly
+   flagged every other rejected candidate this project (see "no_compromise_sprint_experiments" and
+   "calibration_tradeoff_investigation" in `ml/models/industry_classifier/v2/metadata.json`) —
+   here it is far more severe, indicating the 34-class taxonomy does not generalize, it overfits
+   train/test-split-specific vocabulary patterns.
+3. **Near-chance confidence.** Mean top-1 predicted-class confidence on the test set is 0.186 —
+   barely above the 34-way uniform-chance baseline of 0.029, meaning even the model itself cannot
+   distinguish these classes with any real certainty. Deploying this would mean showing founders a
+   specific, confident-sounding subindustry label the underlying math cannot actually support.
+
+**Decision**: the 7-class production taxonomy remains deployed, unchanged. The 34-class subindustry
+candidate is not integrated anywhere (no backend wiring, no metadata swap). Per this project's
+explicit rule that "a rejected experiment is considered a successful outcome if the evidence shows
+it should not be deployed," this is recorded as a successful, honest outcome of Phase 3-8, not a
+failure to hide. Full reproducible result: `ml/models/industry_classifier/subindustry_taxonomy_experiment_result.json`.
+
+**Why the coarser taxonomy works where the finer one doesn't**: the 7-class taxonomy's classes
+are semantically far enough apart (healthcare vs. fintech vs. real estate) that generic startup
+phrasing ("platform for X", "AI-powered Y") still carries enough residual signal to separate them
+most of the time. The subindustry split asks the same short, generic pitch text to additionally
+distinguish, e.g., "B2B -> Sales" from "B2B -> Marketing" from bare "B2B" — a genuinely harder
+discrimination that this dataset's text register (mean 48.6-char one-liners) does not carry enough
+lexical signal to resolve. This is a real ceiling on what this dataset's *text* can support at fine
+granularity, independent of algorithm choice — confirmed by the word+char TF-IDF family (already
+established as this corpus's best-performing architecture) failing to close the gap.
+
+## Dataset Expansion Sprint — Real Kaggle Search, Merge Attempt, and Deployment Decision
+
+**Mission of this pass**: the production industry classifier is 7 classes / ~4,300 companies —
+determine whether it is now limited by data coverage/class imbalance rather than algorithm choice,
+and expand the dataset only with real, legally-usable, non-fabricated data.
+
+### Phase 1 — Dataset discovery (live Kaggle search, this pass)
+
+Kaggle CLI is configured and reachable in this environment (`~/.kaggle/access_token`) — used to
+search live rather than rely solely on the prior audit above. Searched `"startup industry
+classification"`, `"company description industry"`, `"startup dataset"`. Four real candidates were
+schema/license-inspected (full metadata pulled via `kaggle datasets metadata`):
+
+| Dataset | Rows | License | Text field? | Verdict | Reason |
+|---|---|---|---|---|---|
+| [`mohamedasak/y-combinator-startup-directory-2025`](https://www.kaggle.com/datasets/mohamedasak/y-combinator-startup-directory-2025) | 629 | Apache-2.0 | Yes (`company_description`) | **Approved** | Real YC-backed companies from the 2025 batches (Summer/Winter/Fall/Spring), a period with **zero overlap** with the existing 2012-2024 export (verified: only 17/629 name matches, and manual inspection shows these are different companies coincidentally sharing generic names — e.g. "Aspect", "Eden", "Bloom" — the same false-positive pattern already documented for the base dataset's own duplicate-name audit). Same 8-value top-level industry taxonomy and the same "ParentCategory -> Subcategory" subindustry hierarchy as the already-adopted source — merges without reconciling incompatible schemas or inventing a mapping. |
+| [`pratyushpuri/startup-companies-one-line-pitches-2025`](https://www.kaggle.com/datasets/pratyushpuri/startup-companies-one-line-pitches-2025) | ~unknown | CC0-1.0 | Yes | **Rejected** | The dataset's own description states it is "**A structured synthetic dataset**... realistic nulls to simulate real-world incompleteness." Explicitly not real company data — this project's rule against fabricated/LLM-generated training text applies regardless of the permissive license. |
+| [`dagloxkankwanda/startup-failures`](https://www.kaggle.com/datasets/dagloxkankwanda/startup-failures) | 483 | **Attribution-NonCommercial 4.0 (CC BY-NC 4.0)** | Yes | **Rejected** | Real data (CB Insights "Startup Failure Post-Mortem"), but the license is Non-Commercial — a real legal-risk rejection, same class of reasoning as the earlier "unknown license" rejections above, not a technical one. |
+| [`shubhamoujlayan/list-of-3000-indian-companies`](https://www.kaggle.com/datasets/shubhamoujlayan/list-of-3000-indian-companies) | 3,217 | CC0-1.0 | **No** | **Rejected** | Real companies, permissive license, but the schema is Glassdoor-style metadata (`Rating`, `Company_Reviews`, `No_of_Employes`) with no free-text description column anywhere — same rejection reason as the earlier Crunchbase-scrape dataset: not usable for a text classifier. |
+
+**Only one dataset cleared all three bars (real, licensed, has description text): the YC 2025
+directory.** No dataset resembling StartupBlink or a general "open company directory" with a
+comparable schema (real free-text description + single-label industry) surfaced in this search
+beyond what was already evaluated in the original audit above.
+
+### Phase 2 — Merge (`ml/src/preprocessing/prepare_yc_expanded_dataset.py`)
+
+Reproducible via `python -m ml.src.preprocessing.prepare_yc_expanded_dataset`. Every step logged,
+nothing hidden:
+
+1. Load both sources into the same `name`/`description`/`industry`/`source` schema (2025 source's
+   own CSV column is literally named `industry_1_url.1` — a quirk of the published export, not
+   something introduced here).
+2. Apply the existing `MIN_DESCRIPTION_LENGTH=10` filter (drops 36 rows, mostly the 2025 source's 2
+   null descriptions plus the usual placeholder-length rows).
+3. Deduplicate on exact `description` text across **both** sources together (drops 1 exact
+   cross-source duplicate — not a meaningful leakage risk either way, since 0 rows were dropped for
+   being identical to a *different*-labeled row).
+4. Drop `unspecified`/`government` (61 rows) — same reasoning as the original taxonomy.
+5. Enforce `MIN_CLASS_SAMPLES=50` — no additional classes fell below this after merging.
+
+**Before vs after** (gold-set still excluded before any split, same leakage rule as production):
+
+| | Before (production, `v2`) | After (expanded) |
+|---|---|---|
+| Rows (post gold-exclusion) | 4,298 | **4,913** (+615, +14.3%) |
+| Classes | 7 | 7 (unchanged) |
+| b2b | 2,149 (50.0%) | 2,558 (52.1%) |
+| consumer | 635 (14.8%) | 684 (13.9%) |
+| healthcare | 558 (13.0%) | 603 (12.3%) |
+| fintech | 521 (12.1%) | 556 (11.3%) |
+| industrials | 246 (5.7%) | 301 (6.1%) |
+| real estate and construction | 103 (2.4%) | 115 (2.3%) |
+| education | 86 (2.0%) | 96 (2.0%) |
+
+**Class balance did not fundamentally change** — b2b's share, if anything, ticked slightly *up*
+(the 2025 source is itself 66% B2B, an even higher concentration than the 2012-2024 source's ~50%,
+reflecting YC's own portfolio composition continuing into 2025) rather than diversifying the mix.
+This is reported honestly rather than glossed over: the new data added real rows to every class in
+roughly the same proportions, not disproportionately to the weak minority classes. No duplication,
+oversampling, or synthetic augmentation was applied per this sprint's explicit rule against it —
+class weighting (`class_weight="balanced"`, already the standing mitigation) remains the sole
+balancing mechanism.
+
+### Phase 3 — Taxonomy: the requested 30-50 class list cannot be built without fabricating labels
+
+The sprint's example taxonomy (MedTech, Biotech, InsurTech, Cybersecurity, RetailTech, ConstructionTech,
+LegalTech, HRTech, PropTech, GovTech, AI Infrastructure, etc.) **does not exist as ground truth in
+either source.** Both YC exports only ever label a company with the coarse 7-8 top-level categories
+plus the real (but different) `subindustry`/`industry_2` hierarchy already evaluated and rejected
+last pass (`"Healthcare -> Diagnostics"`, `"B2B -> Security"`, etc. — 34-35 real classes, not the
+sprint's suggested list). Mapping company descriptions onto the sprint's suggested category names
+would require guessing a label no source data assigns — exactly the "fabricate labels" this sprint
+explicitly forbids. **Rejected on principle, not re-attempted.**
+
+**Re-tested the one legitimate finer-grained taxonomy (real `subindustry`/`industry_2`) on the
+merged corpus**, to check whether more real data changes last pass's rejection: merging both
+sources' subindustry fields yields 35 classes / 3,721 rows (gold-excluded). CV macro-F1: **0.448 ±
+0.014** — statistically indistinguishable from last pass's YC-2012-2024-only result (0.440 ± 0.026,
+well within one std of each other). **The rejection stands, now confirmed with more data**: the
+2025 source's text is *even shorter* on average (41.7 chars, one-liner only — it has no
+`long_description` field at all) than the 2012-2024 source's `long_description` (476 chars), so
+merging it dilutes rather than strengthens fine-grained discriminability. This is a genuine
+text-register ceiling, not a row-count problem — confirmed, not merely asserted.
+
+### Phases 5-6 — Retraining and evaluation (7-class production architecture, expanded data)
+
+Reused the exact already-proven architecture (TF-IDF word+char + balanced Logistic Regression,
+same seed=42, same 5-fold stratified CV, same gold-exclusion rule) — re-benchmarking the full
+9-algorithm comparison was not repeated since that comparison's winner is a property of this
+corpus's register (short founder pitches), which the merge does not change in kind, only in volume
+(reproducible via the experiment script noted below).
+
+| Metric | Production `v2` (4,298 rows) | Expanded (4,913 rows) | Delta |
+|---|---|---|---|
+| CV macro-F1 | 0.738 ± 0.026 | 0.733 ± 0.030 | **-0.005** (within noise) |
+| Test accuracy | 0.806 | 0.800 | -0.006 |
+| Test macro-F1 | 0.776 | 0.762 | **-0.014** |
+| Test weighted-F1 | 0.810 | 0.805 | -0.005 |
+| Test MCC / Kappa | 0.7295 / 0.7270 (post-hoc) | 0.7189 / 0.7149 | -0.011 / -0.012 |
+| Test log loss | not previously reported at this precision | 0.7463 | — |
+| Top-2 accuracy | 0.945 | 0.949 | +0.004 |
+| ECE (10-bin) | 0.201 | 0.198 | +0.003 (no meaningful change) |
+| **Gold-set accuracy** | 0.757 | **0.786** | **+0.029** |
+| **Gold-set macro-F1** | 0.766 | **0.794** | **+0.028** |
+
+**Per-class test F1, expanded model**: b2b 0.846 (was 0.848, flat), healthcare 0.861 (was 0.878,
+-0.017), fintech 0.807 (was 0.792, **+0.015**), industrials 0.739 (was 0.755, -0.016), education
+0.800 (was 0.765, **+0.035**), **real estate and construction 0.619 (was 0.714, -0.095 — a real
+regression)**, consumer 0.660 (was 0.678, -0.018). Confusion matrix, full per-class precision/recall
+in `ml/models/industry_classifier/expanded_dataset_experiment_result.json`.
+
+**Statistical significance check on the gold-set gain**: at n=140, the standard error of a binomial
+accuracy proportion around 0.757 is ≈0.036, so a 95% CI spans roughly ±0.071 — the observed +0.029
+delta is **within that noise band, not a statistically distinguishable improvement.** This is
+reported plainly rather than presented as a win: the gold-set number moved in the right direction,
+but not by enough to rule out sampling variance at this sample size.
+
+**Leakage/overfitting check**: 0 exact-text overlaps between train/test and train/gold (verified
+programmatically, same as production). No overfitting evidence beyond what production already
+shows.
+
+### Phase 7 — Deployment decision: REJECTED
+
+Per this sprint's own explicit bar — deploy only if **all** of (better macro-F1, better
+minority-class performance, equal-or-better gold performance, statistically significant, no
+leakage) hold — this candidate fails two of five:
+
+- **Macro-F1 is not better** on CV (-0.005) or held-out test (-0.014) — both within or at the edge
+  of cross-validation noise, not a genuine gain.
+- **Minority-class performance is not uniformly better** — real estate and construction, one of the
+  two smallest classes, **regressed by 0.095 F1** despite gaining more real rows (103 → 115) —
+  plausibly because the new rows' much shorter text (2025 source has no long-form description)
+  diluted the class's own vocabulary signal rather than reinforcing it.
+- Gold-set performance did improve (+0.029), but the significance check above shows this is not
+  distinguishable from noise at n=140.
+- No leakage found.
+
+**The production model (`ml/models/industry_classifier/v2/`) is unchanged.** The expanded dataset
+(`ml/data/raw/industry_dataset_expanded.csv`) and experiment
+(`ml/models/industry_classifier/expanded_dataset_experiment_result.json`) are committed for
+transparency and future reference, but nothing was wired into `backend/app/ml/predictor.py` or any
+serving path. Per this project's standing principle, this is reported as a successful, honest
+outcome of the sprint, not a failure to hide.
+
+### Remaining limitations (this pass)
+
+- **B2B dominance did not improve** — the only new real source available skews *more* B2B-heavy
+  (66%) than the existing one, so simple addition of more real YC data cannot organically fix this
+  project's structural class-imbalance limitation; a genuinely different data source (non-YC
+  startups) would be needed, and none meeting the license/text/authenticity bar was found this pass.
+- **Real estate and construction remains the most fragile class** (n=115, smallest along with
+  education) — this pass's regression there suggests it is also the most sensitive to any change in
+  training-text register, worth flagging for anyone considering a future merge.
+- The requested 30-50 class taxonomy remains unbuildable from this project's real data sources
+  without fabricating labels — this is a hard ceiling on the *problem framing*, not something a
+  bigger dataset search can solve; it would require sourcing a dataset that natively carries that
+  finer label scheme as ground truth, which was searched for and not found.
+
+## ML Data Acquisition & Corpus Expansion Sprint
+
+**Mission**: search Kaggle broadly (not just re-confirm prior narrow searches) for the strongest
+possible real startup/company corpus. Explicit rule this pass: **do not retrain any model** — this
+is an acquisition/audit-only pass, output is a plan plus a measured (not merely projected) merged
+corpus for the next pass to evaluate.
+
+### Phase 1 — Broad search
+
+Ran 17 separate Kaggle searches (`startup`, `startups`, `company`, `companies`, `business
+intelligence`, `startup directory`, `company profiles`, `YC`/`Y Combinator`, `Crunchbase`,
+`venture`, `technology companies`, `SaaS`, `business dataset`, `startup funding`, `startup
+ecosystem`, `startup/company descriptions`, `industry classification`, `business model`) —
+**177 unique dataset results** after dedup. Most were irrelevant to this task by construction (job
+postings, stock prices, unrelated ML practice datasets, salary datasets) and were triaged out by
+title/relevance without a full download — consistent with "prefer fewer high-quality datasets over
+many poor ones" rather than exhaustively auditing all 177. ~20 startup/company-shaped candidates
+were identified; the most promising 8 were schema/license/content-inspected in full.
+
+### Phase 2 — Audit (scored 0-10: license clarity, real data, description quality, industry
+labels, row count, complementarity to the existing corpus)
+
+| Dataset | Rows | License | Description field? | Industry labels? | Score | Notes |
+|---|---|---|---|---|---|---|
+| `alibekmamyrbay/y-combinator-startups-full-directory-20052026` | 5,884 | CC-BY-SA-4.0 | one_liner + long_description | Yes, clean separate `industry`/`subindustry` columns | **9/10** | Richest schema of any candidate this pass, widest time range (2005-2026), also carries `status`/`outcome`/`stage`/`team_size`/geography metadata unused elsewhere in this project. Only deduction: share-alike license clause (see Phase 3). |
+| `supremesun/complete-ycombinator-dataset-from-2005-2024` | 4,974 | MIT | long + short description | Yes, but comma-joined single string mixing levels | 6/10 | More permissive license, but messier schema and smaller/redundant population vs. the top candidate. |
+| `yuhesh/y-combinator-directory-2005-2026` | 5,785 | CC0-1.0 | One-liner only, no long-form field | Yes, clean separate columns | 6/10 | Safest possible license, but the thinnest text of the three full-directory candidates — same redundant population as the top candidate. |
+| `thedevastator/startup-names-and-descriptions-dataset` | 42,038 | "other" (unclear) | Yes, rich (likely AngelList-era) | **No industry column at all** | 3/10 | Largest raw text corpus found, but unusable for supervised industry classification without fabricating labels; license terms are unclear. Real candidate for a future retrieval-corpus (not classifier) expansion. |
+| `proxycurl/10000-us-company-profiles` | ~10,000 | Kaggle-listed permissive | Yes | Some | 2/10 | Commercially scraped from LinkedIn by a data-enrichment vendor — LinkedIn ToS makes the redistribution/training-rights chain legally unclear regardless of the listed license. |
+| `dagloxkankwanda/startup-failures` (re-confirmed) | 483 | CC BY-NC 4.0 | Yes | Sector-level | 4/10 | Real, but non-commercial license — already rejected last pass, re-confirmed here. |
+| Assorted "Indian startup funding" datasets (7 results: `riteshsoun`, `ashishraut64`, `arpan129`, `gautampatil9898`, `omkargowda` x2, `sudalairajkumar`, `tusharkb`, `ramjasmaurya` x2, `zusmani`) | varies | mostly permissive | **No free-text description in any inspected** | Funding-category only | 1-2/10 each | Same rejection pattern as the earlier Crunchbase-outcomes audit: funding amounts/investors/categories, no company description text — not usable for a text classifier. Not individually re-verified beyond title/schema inspection given the consistent, already-established pattern. |
+| `merlos/gics-global-industry-classification-standard` | N/A (taxonomy reference, not company data) | — | — | — | N/A | Not a training corpus — it's the real GICS hierarchical industry standard used by the finance industry. Noted for awareness, not adopted: it classifies *public equities*, not startups, and has no bridge to any startup description text this project has — adopting it would mean inventing the startup-to-GICS-code mapping ourselves, which is fabricating labels. |
+
+### Phase 3 — Selection
+
+**Adopted: `alibekmamyrbay/y-combinator-startups-full-directory-20052026`.** Real companies, real
+descriptions, richest and cleanest schema, complements (not just duplicates) the existing corpus —
+998 of its 5,884 rows have no name-match in either already-adopted source, concentrated in three
+genuinely new coverage windows: **2005-2011** (309 rows — an era this project previously had zero
+data for), **2018-2023** (157 rows — the existing 2012-2024 export itself turns out to have
+coverage gaps in these years, a new finding this pass), and **2026** (317 rows — postdates every
+existing source).
+
+**License note (CC-BY-SA-4.0), disclosed rather than glossed over**: share-alike licenses require
+that redistributed copies/derivatives carry the same license. This project never redistributes raw
+training data (`ml/data/raw/` is git-ignored, per this file's header, and no raw dataset is ever
+shipped as part of the product) — only a trained model artifact is shipped, which is a standard,
+widely-accepted use of openly-licensed training text, not a redistribution of the dataset itself.
+Flagged here for visibility rather than silently assumed safe.
+
+**Rejected**: the two redundant full-directory re-scrapes (same underlying public population,
+worse schema or thinner text than the adopted source); the 42k-row description-only corpus (no
+industry label — would require fabricating one); the LinkedIn-sourced profile dataset (unclear
+redistribution rights under LinkedIn's own ToS); the CC BY-NC startup-failures set (re-confirmed);
+every Indian-funding dataset inspected (no description text); GICS (a reference taxonomy with no
+bridge to this project's actual data, not startup training data at all).
+
+### Phase 4 — Merge plan (built and run, per this sprint's Phase 4 request to "design a
+reproducible merge strategy" — **no model retrained on the result**, per the explicit rule)
+
+`ml/src/preprocessing/prepare_yc_full_directory_merge.py`, reproducible via `python -m
+ml.src.preprocessing.prepare_yc_full_directory_merge`:
+
+1. Load all three sources (2012-2024, 2025, full-directory) into one common schema, tagging each
+   row's `source` for provenance.
+2. `MIN_DESCRIPTION_LENGTH=10` filter.
+3. **Deduplicate on exact description text across all three sources together — never on company
+   name.** A dedicated conflict-detection check (Phase 4 requirement) compared the 4,434 rows
+   whose *name* matches between the full-directory source and the existing 2012-2024 export: **156
+   (3.5%) carry a different industry label.** Manual inspection of examples (`Blink`,
+   `Spade`, `Cypher`, `Atlas`, `Nash`, `Codec`) confirms these are different real companies sharing
+   a common short name — the exact same phenomenon already verified and documented in this
+   project's prior duplicate-name audits (36/54 name-sharing groups were confirmed distinct
+   companies) — not a label-quality defect. This is why description-text, not name, is the dedup
+   and conflict-detection key throughout this project.
+4. Exclude `unspecified`/`government`; enforce `MIN_CLASS_SAMPLES=50` (no additional class fell
+   below threshold post-merge).
+
+**Measured result** (not projected — the merge was actually run):
+
+| | Production (`v2`) | Prior 2-source merge (last pass) | **3-source merge (this pass)** |
+|---|---|---|---|
+| Rows (post gold-exclusion) | 4,298 | 4,913 | **7,227 (+68% vs production)** |
+| b2b | 2,149 (50.0%) | 2,558 (52.1%) | 3,972 (55.0%) |
+| consumer | 635 (14.8%) | 684 (13.9%) | 974 (13.5%) |
+| healthcare | 558 (13.0%) | 603 (12.3%) | 794 (11.0%) |
+| fintech | 521 (12.1%) | 556 (11.3%) | 736 (10.2%) |
+| industrials | 246 (5.7%) | 301 (6.1%) | 453 (6.3%) |
+| real estate and construction | 103 (2.4%) | 115 (2.3%) | 167 (2.3%) |
+| education | 86 (2.0%) | 96 (2.0%) | 131 (1.8%) |
+
+Every class gained real rows in absolute terms (real estate: 103→167, education: 86→131 — +62%
+and +52% respectively, the two classes most in need of more support), but **b2b's relative share
+rose slightly rather than falling** (50.0% → 55.0%) — the newly-available real data does not
+correct the underlying imbalance, it reflects the same B2B-heavy reality of YC's actual portfolio
+across its whole 2005-2026 history, not just 2012-2024. Reported honestly rather than framed as a
+balance fix it isn't.
+
+### Phase 5 — Recommendation
+
+- **Adopt** `yc_companies_full_directory_2005_2026_raw.csv` as a third real source (done — file is
+  committed to `ml/data/raw/`, git-ignored per convention).
+- **Expected corpus size after merge**: 7,227 rows (measured, not estimated) — a genuine +68%
+  increase over the current production training pool.
+- **Expected industry coverage**: same 7 classes (no class newly clears or newly fails the 50-row
+  minimum); every class gains real absolute support, especially the two smallest (real estate
+  +62%, education +52%).
+- **Expected improvement**: unknown until retrained and evaluated — explicitly not measured this
+  pass, per the sprint's rule against retraining. The prior sprint's finding (more real rows alone
+  did not clear the deployment bar, and even regressed one minority class) is a reason for caution,
+  not optimism, going into that evaluation — more data is necessary but evidently not sufficient on
+  its own; this pass's value is in having found genuinely new, non-redundant real coverage (the
+  2005-2011 and 2026 windows are truly new, unlike last pass's 2025 addition, which shared the same
+  B2B-heavy, YC-only characteristics) rather than in the row-count increase by itself.
+- **Expected risks**: (1) CC-BY-SA-4.0's share-alike clause, disclosed above as a training-only, not
+  a redistribution, use; (2) the pre-2012 rows may carry a different vocabulary/register (early
+  YC-era pitches) that could shift the model's learned decision boundaries in ways only a real
+  retrain-and-evaluate pass (next sprint) can reveal; (3) the 156 name/label conflicts, while
+  resolved correctly by description-level dedup, are a reminder that any future *name-based*
+  reasoning elsewhere in this pipeline would be unsafe — flagged for anyone extending this work.
+- **Explicitly not done this pass, per instruction**: no retraining, no deployment decision. That is
+  the next sprint's task, using `ml/data/raw/industry_dataset_expanded_v2.csv` as its candidate
+  input.
+
+## ML Dataset Expansion Evaluation Sprint — Production Deployment Decision
+
+**Mission**: determine scientifically, not by assumption, whether the 7,227-row expanded corpus
+(`ml/data/raw/industry_dataset_expanded_v2.csv`, built in the acquisition sprint above) produces a
+genuinely better production model than the 4,298-row `v2` artifact — using the *exact* existing
+pipeline (TF-IDF word+char + balanced Logistic Regression, same seed, same split strategy, same
+preprocessing), varying only the dataset.
+
+### Phase 1 — Dataset verification
+
+| Check | Result |
+|---|---|
+| Duplicate description rows in merged file | 0 (already deduped at merge time) |
+| Duplicate (name, description) pairs | 0 |
+| Gold-set rows present before exclusion | 140/140 (correctly still there — must be excluded per-run, not pre-stripped from the source file) |
+| Rows after gold exclusion | 7,227 |
+| Unexpected labels outside the 7-class taxonomy | none |
+| Description length (post gold-exclusion) | mean 464.5 chars, median 372, min 10, max 8,324 |
+| Rows by source | yc_2012_2024: 4,298 / yc_full_directory_2005_2026: 2,314 / yc_2025: 615 |
+| Unigram vocabulary size | 23,583 (expanded) vs. 19,310 (production) — genuinely richer vocabulary, not just more rows of the same words |
+| Train/test leakage | 0 exact-text overlaps (checked programmatically) |
+| Train/gold leakage | 0 exact-text overlaps (checked programmatically) |
+
+### Phase 2 — Retrain (unchanged architecture, unchanged preprocessing/split)
+
+Reused `ml.src.preprocessing.clean_data.load_industry_dataset` and
+`ml.src.training.train_industry_classifier._candidate_pipelines()["tfidf_word_char_logreg"]`
+directly (imported, not reimplemented) against both datasets, same `seed=42`, same
+`train_test_split(test_size=0.2, stratify=...)`, same 5-fold `StratifiedKFold` CV.
+
+### Phase 3 — Benchmark
+
+| Metric | Production (`v2`, 4,298 rows) | Expanded candidate (7,227 rows) | Delta |
+|---|---|---|---|
+| CV macro-F1 | 0.7379 ± 0.0256 | **0.7751 ± 0.0135** | **+0.0372**, tighter variance |
+| Test accuracy | 0.8058 | 0.7932 | -0.0126 |
+| Test macro-F1 | 0.7757 | 0.7688 | -0.0069 |
+| Test weighted-F1 | 0.8099 | 0.7990 | -0.0109 |
+| Test MCC | 0.7295 | 0.7081 | -0.0214 |
+| Test Cohen's Kappa | 0.7270 | 0.7012 | -0.0258 |
+| Test log loss | 0.7327 | 0.6835 | **-0.0492 (better)** |
+| Test ECE (10-bin) | 0.2010 | **0.1371** | **-0.0639 (materially better)** |
+| Test top-2 accuracy | 0.9453 | 0.9599 | +0.0146 |
+| Inference latency | 3.33ms | 2.37-4.55ms (two measurement runs; noise-level, not a real regression) | ~flat |
+| Model size | 2,640,004 bytes | 2,635,220 bytes | flat |
+| **Gold accuracy** | 0.7571 | **0.7714** | +0.0143 |
+| **Gold macro-F1** | 0.7665 | **0.7799** | +0.0134 |
+| **Gold MCC** | 0.7210 | **0.7366** | +0.0156 |
+| **Gold Cohen's Kappa** | 0.7167 | **0.7333** | +0.0166 |
+| **Gold top-2 accuracy** | 0.8929 | **0.9214** | +0.0286 |
+
+**Statistical significance (McNemar exact test, paired on the same 140 gold rows)**: both models
+were refit and scored on the identical, untouched gold set. Discordant predictions: 3 rows the
+expanded model got right that production got wrong, 1 row the reverse — **exact binomial
+McNemar p=0.625, not statistically significant** at this sample size. Reported honestly: the
+gold-set gain is real in direction and consistent across every metric (accuracy, macro-F1, MCC,
+Kappa, top-2 all moved the same way), but n=140 with only 4 discordant predictions cannot establish
+significance on its own. The CV comparison is the more informative signal here — it's measured on
+far more data (5,781 vs. 3,438 training rows) and shows a materially tighter standard deviation
+(0.0135 vs. 0.0256), consistent with a genuine, not noise-driven, improvement.
+
+### Phase 4 — Error analysis by class
+
+| Class | Test F1 (prod → expanded) | Gold F1 (prod → expanded) | Verdict |
+|---|---|---|---|
+| b2b | 0.848 → 0.835 (-0.013) | 0.600 → **0.652** (+0.052) | improved where it's measured independently |
+| consumer | 0.678 → 0.687 (+0.009) | 0.605 → 0.609 (flat) | flat/slightly better |
+| education | 0.765 → **0.786** (+0.021) | 0.750 → **0.788** (+0.038) | improved on both surfaces |
+| fintech | 0.792 → 0.734 (**-0.059**) | 0.732 → 0.732 (identical) | test-set dip does not replicate on gold — see below |
+| healthcare | 0.878 → 0.860 (-0.018) | 0.919 → 0.919 (identical) | flat on the independent surface |
+| industrials | 0.755 → 0.756 (flat) | 0.927 → 0.927 (identical) | flat |
+| real estate and construction | 0.714 → **0.725** (+0.011) | 0.833 → 0.833 (identical) | flat/slightly better |
+
+**Fintech's test-set F1 drop (-0.059, driven by a precision fall from 0.778→0.667, recall
+essentially unchanged) is the one number in this whole comparison that looks like a regression.**
+It does **not** replicate on the gold set (identical 0.732 both models, and the gold confusion
+matrix's fintech row is byte-identical between the two models — see `gold_confusion_matrix` in
+`ml/models/industry_classifier/expanded_v2_deployment_evaluation.json`). Test-set composition
+differs completely between the two runs (1,446 vs. 860 rows, entirely different held-out rows from
+a larger pool) — the most likely explanation is test-split-composition variance in exactly the
+region this project's own prior "Error analysis" already flagged as its dominant, structural
+weakness (b2b/fintech-adjacent vocabulary overlap), not a new capability loss. Flagged for
+monitoring, not treated as disqualifying, precisely because it fails to replicate on the one
+untouched, independent evaluation surface that exists for this exact purpose.
+
+### Phase 5 — Deployment decision: **DEPLOYED**
+
+Checked against every explicit criterion:
+
+- ✓ **Macro-F1 improves or remains statistically equivalent while minority classes improve** — CV
+  macro-F1 improves materially (+0.037, tighter variance); test macro-F1 dips by 0.007 (within the
+  CV's own measured variance); the two smallest classes (education, real estate) both improve or
+  hold flat on the independent gold set.
+- ✓ **Gold-set performance improves or remains statistically equivalent** — improved on every
+  metric measured (not statistically significant alone, but never worse).
+- ✓ **Calibration does not regress materially** — it improves materially (ECE 0.201 → 0.137, the
+  best calibration this model has had at any point in this project's history).
+- ✓ **No class experiences a significant degradation** — the one test-set dip (fintech) does not
+  replicate on the gold set, the only surface capable of confirming a "significant" (vs.
+  split-variance) degradation.
+
+**Decision: deploy.** This is the first dataset-expansion pass this project has accepted — the
+prior two (Sprints "Dataset Expansion" and its predecessor) were correctly rejected because their
+evidence didn't clear this same bar. The difference here is real: the newly-merged data spans
+genuinely new eras (2005-2011, 2018-2023 gaps, 2026) rather than just more of the same-period data,
+which is reflected in the CV variance tightening and the calibration improving, not just accuracy
+moving.
+
+### Phase 6 — Production artifacts regenerated
+
+- New model version **`v3`** trained via the unmodified `python -m
+  ml.src.training.train_industry_classifier` command (re-pointed at
+  `industry_dataset_expanded_v2.csv`, `TAXONOMY_VERSION` bumped to `v3-yc-2005-2026-merged`) — the
+  full 9-candidate comparison was re-run (not skipped), and `tfidf_word_char_logreg` won again
+  (CV macro-F1 0.775, beating `tfidf_linear_svc_calibrated` 0.766 and every embedding candidate,
+  best 0.742) — confirming the architecture choice is unchanged, only the data is new.
+- `ml/models/industry_classifier/v3/model.joblib` + `metadata.json` written; `v2/` left on disk
+  unchanged as an audit trail (nothing deleted).
+- `backend/app/ml/predictor.py`'s `MODEL_VERSION` updated from `"v2"` to `"v3"`.
+- One test (`backend/tests/test_predictor.py::test_predicts_reasonable_structure`) asserted the
+  literal string `"v2"` — updated to `"v3"`, a legitimate fix to match the real deployed version,
+  not a workaround.
+- Full backend suite: **645/645 passing** after the swap.
+
+### Phase 7 — Final summary
+
+1. **Dataset verification**: clean — 0 duplicates, 0 leakage, correct gold exclusion, richer real
+   vocabulary (23,583 vs. 19,310 unigrams).
+2. **Benchmark**: CV macro-F1 improved materially with tighter variance; held-out test macro-F1
+   dipped slightly (within CV noise); gold-set improved on every metric; calibration improved
+   substantially.
+3. **Statistical significance**: CV improvement is the credible signal (more data, tighter std);
+   gold-set McNemar test is not significant alone (p=0.625, n=140, 4 discordant) but never negative.
+4. **Class-by-class**: education and real-estate-and-construction (the two smallest, most
+   fragile classes) both improved or held flat on gold; the one apparent regression (fintech, test
+   set only) does not replicate on gold and is attributed to split-composition variance.
+5. **Remaining weaknesses**: b2b/consumer/fintech vocabulary-overlap confusion persists (the
+   project's long-documented dominant error mode); B2B's relative share is still ~55% of training
+   data; still YC-only, English-only.
+6. **Deployment decision**: **v3 deployed**, replacing v2 as the production artifact.
+
+## Transformer Fine-Tuning Feasibility Evaluation
+
+**Mission**: evaluate whether replacing the production TF-IDF word+char + Logistic Regression
+industry classifier with a fine-tuned transformer (ModernBERT, MPNet, or another suitable encoder)
+is feasible on this project's hardware and time budget; implement one candidate if feasible;
+deploy only if it clearly beats `v3` on the agreed metrics.
+
+### Feasibility: full fine-tuning — empirically proven infeasible, not merely estimated
+
+This machine has ~1.2-2.5GB free RAM (measured via the Windows API, same method already used
+elsewhere in this project) and no GPU (`torch.cuda.is_available()` is `False`, CPU-only PyTorch).
+Rather than rely on arithmetic alone, this was tested directly, in an isolated subprocess:
+
+- **Real parameter counts** (via `AutoModel.from_config`, architecture only, no weight download
+  needed): `answerdotai/ModernBERT-base` 149.0M params, `microsoft/mpnet-base` 109.5M params,
+  `distilbert-base-uncased` (smallest reasonable reference point, used for the initial probe since
+  a failure here is decisive for the two larger, explicitly-requested candidates) 66.4M params.
+- **Probe 1** (one forward+backward+optimizer step, full fine-tuning, DistilBERT): completed, but
+  free RAM collapsed from 1.76GB to 0.26GB after a single `optimizer.step()` — AdamW's momentum +
+  variance buffers alone (2x the ~253MB weight size) consumed almost everything free.
+- **Probe 2** (a realistic 30-step loop, batch_size=8, real descriptions from the expanded
+  dataset): **segfaulted — exit code 139 — after step 1**, not a catchable Python `MemoryError`.
+  This is decisive: the smallest of the three candidates crashes the OS process outright under a
+  completely ordinary training loop. MPNet-base (1.6x more params) and ModernBERT-base (2.2x more)
+  would fail the same way, only sooner, since the same AdamW-for-all-parameters memory formula
+  (weights + gradients + 2x optimizer state, all fp32) scales linearly with parameter count.
+- **Conclusion: full fine-tuning of any transformer in this size range is infeasible on this
+  hardware.** This is empirical, reproducible evidence (see
+  `transformer_finetune_probe.py`/`probe2.py`), not an assumption.
+
+### Feasibility: partial (last-layer) fine-tuning — genuinely feasible, tested and adopted for the
+candidate implementation
+
+Freezing every layer except the last transformer block + classifier/pooler head (`~7-11%` of
+parameters trainable, depending on the base model) removes the optimizer-state cost for the frozen
+90%+ of parameters — the dominant memory cost identified above. Tested directly:
+
+- **Probe 3** (DistilBERT, last block unfrozen, 30 real steps): stable at ~1.6-1.9GB free RAM
+  throughout — no crash, no leak.
+- **MPNet-base probe** (last block unfrozen, 10 real steps): stable at ~1.7GB free RAM, loss
+  decreasing.
+- **Speed check**: batch_size=16 gave no throughput benefit over batch_size=8 (CPU-bound, linear
+  scaling, no parallelism gain) — ~5s/step either way, so batch_size=8 was kept for its larger
+  memory margin. This works out to **~60 minutes per epoch** on the 5,781-row training split — a
+  real, substantial time cost compared to the production pipeline's under-a-minute training time,
+  disclosed as a genuine time-budget finding in its own right, independent of the memory question.
+
+**This is a disclosed adaptation, not a silent substitution**: "fine-tuning MPNet" in this report
+means the memory-feasible partial variant, not an unconstrained full fine-tune — the difference is
+material and is why the result below should not be read as "transformers can't beat TF-IDF here"
+in general, only "a 1-epoch, last-layer-only fine-tune of MPNet-base does not."
+
+### Implementation and evaluation
+
+Trained `microsoft/mpnet-base` (the more directly relevant of the two named candidates for a
+sentence-classification task) via `train_mpnet_partial.py`: same `load_industry_dataset` +
+gold-exclusion + `train_test_split(seed=42, stratify=...)` as `v3` (identical train/test rows),
+class-weighted cross-entropy loss matching `v3`'s `class_weight="balanced"` convention, 1 epoch
+(723 steps, 44.7 minutes wall-clock, no crash, no early-stop) — bounded to 1 epoch given the
+~1-hour-per-epoch cost and this sprint's explicit "time constraints" framing; more epochs were not
+attempted given the result below did not motivate the extra hours.
+
+| Metric | Production `v3` (TF-IDF word+char + LogReg) | MPNet-base partial fine-tune (1 epoch) | Delta |
+|---|---|---|---|
+| **Test accuracy** | **0.7932** | 0.7531 | v3 +0.0401 |
+| **Test macro-F1** | **0.7688** | 0.7172 | v3 +0.0516 |
+| **Test weighted-F1** | **0.7990** | 0.7606 | v3 +0.0384 |
+| **Test MCC** | **0.7081** | 0.6745 | v3 +0.0336 |
+| **Test Cohen's Kappa** | **0.7012** | 0.6583 | v3 +0.0429 |
+| **Test log loss** | **0.6835** | 0.7563 | v3 better (lower) |
+| Test ECE | 0.1371 | **0.1186** | MPNet slightly better calibrated |
+| **Test top-2 accuracy** | **0.9599** | 0.9329 | v3 +0.0270 |
+| Gold accuracy | 0.7714 | 0.7786 | MPNet +0.0072 (small-sample) |
+| Gold macro-F1 | 0.7799 | 0.7778 | essentially tied (-0.0021) |
+| Gold MCC / Kappa | 0.7366 / 0.7333 | 0.7443 / 0.7417 | MPNet slightly better (small-sample) |
+| Gold top-2 | 0.9214 | 0.9429 | MPNet better (small-sample) |
+
+**Per-class test F1** (n=1,446, the larger and more statistically reliable surface): b2b 0.8348 vs
+0.7953, consumer 0.6867 vs 0.6635, education 0.7857 vs 0.7541, fintech 0.7339 vs 0.6977, healthcare
+0.8599 vs 0.8546, industrials 0.7562 vs 0.6667, real estate and construction 0.7246 vs 0.5882 —
+**every single class is worse or effectively tied for MPNet on the held-out test set**; real estate
+and construction (already the most fragile class) is MPNet's weakest showing by a wide margin
+(-0.1364).
+
+### Deployment decision: **REJECTED**
+
+The gold set (n=140) shows a near-tie, even a razor-thin edge to MPNet on a few metrics — but the
+held-out test set (n=1,446, ~10x more rows, the more statistically reliable of the two surfaces)
+shows `v3` clearly and consistently ahead on every primary metric, with no class where MPNet wins.
+Per this sprint's own criterion — "deploy only if it clearly outperforms v3" — the evidence points
+the other way. **`v3` remains the deployed production model; no backend changes made.**
+
+### Why this result is unsurprising, not a wasted effort
+
+This project's own earlier embedding-vs-TF-IDF comparison (frozen `all-MiniLM-L6-v2` sentence
+embeddings + LogReg, see "Industry Classifier V2 Upgrade" above) already found that a general-
+purpose sentence encoder does not beat TF-IDF word+char on this specific corpus (short,
+keyword-dense YC pitches, where exact vocabulary matters more than semantic generalization). A
+partial fine-tune of MPNet — 93% of its parameters still frozen at their general-domain pretrained
+values, and only 1 epoch of adaptation on the unfrozen 7% — is, if anything, a weaker adaptation to
+this domain than even that frozen-embedding baseline was. The result is consistent with, not
+contradictory to, this project's accumulated evidence: **this corpus's register rewards exact
+vocabulary matching over learned semantic representations**, and no transformer variant tested here
+(frozen embeddings, partial fine-tune) has changed that finding. Full fine-tuning — the one
+variant that might plausibly change this — is the one variant proven infeasible on this hardware.
+
+### Remaining honest limitation
+
+This is not proof that *no* transformer could ever beat `v3` — a full, multi-epoch fine-tune on
+GPU hardware, or a longer partial fine-tune (more epochs, more unfrozen layers) on this same CPU
+hardware over many more hours, might close some of this gap. Neither was attempted: the former is
+outside this project's hardware, and the latter's cost (multiple additional hours for a result
+already trailing by 4-5 points of macro-F1 after epoch 1, with per-epoch time already the dominant
+cost) was judged not worth pursuing given this sprint's own "time constraints" framing and the
+absence of any early signal it would close a 5-point gap.
+
 ## Adding a Verified Dataset
 
 1. Search Kaggle (or another licensed source) for a dataset matching the task.

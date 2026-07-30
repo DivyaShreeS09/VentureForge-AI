@@ -96,6 +96,31 @@ export interface IndustryPrediction {
   abstention_reason?: string | null;
 }
 
+/** One deployment-sector match from the backend's `extract_deployment_sectors` — e.g. a
+ * description mentioning "hotel" surfaces {sector: "Hotels", matched_text: ["hotel"]}.
+ * Deterministic keyword extraction, not a model prediction. */
+export interface CustomerHint {
+  sector: string;
+  matched_text: string[];
+}
+
+/** Response of `POST /predict/industry` — the thin, read-only Discovery-only preview. Every
+ * field mirrors `IndustryPrediction` above exactly (same classifier, same confidence
+ * calculation); `available: false` is the honest "can't answer yet" state (untrained
+ * classifier, or too little text) and is not an error. */
+export interface IndustryPreview {
+  available: boolean;
+  predicted_industry: string | null;
+  confidence: number | null;
+  is_uncertain: boolean | null;
+  uncertainty_reasons: string[];
+  secondary_industry: string | null;
+  secondary_confidence: number | null;
+  model_version: string | null;
+  customer_hints: CustomerHint[];
+  detected_keywords: string[];
+}
+
 export interface FundingBreakdownItem {
   dimension: string;
   label: string;
@@ -496,6 +521,292 @@ export interface FounderGuidanceItem {
   source: "deterministic";
 }
 
+/** Product Intelligence Sprint: every recommendation-bearing sentence in the Founder Report is
+ * tagged with exactly one of these five categories server-side (backend/app/agents/founder_report.py)
+ * — never rendered without its tag, so a founder always knows what kind of claim they're reading. */
+export type FounderReportCategory =
+  | "evidence"
+  | "inference"
+  | "ai_recommendation"
+  | "market_assumption"
+  | "experiment_suggestion";
+
+export interface TaggedText {
+  content: string;
+  category: FounderReportCategory;
+}
+
+export interface PricingTiers {
+  pilot: number;
+  launch: number;
+  premium: number;
+  recommended_starting_tier: "pilot" | "launch" | "premium";
+  starting_tier_reason: string;
+}
+
+export interface PricingIntelligence {
+  pricing_intelligence_version: string;
+  currency: string;
+  target_market: "india" | "international" | "unclear";
+  target_market_is_assumption: boolean;
+  confidence: "high" | "low";
+  rationale: string[];
+  pricing_tiers: PricingTiers;
+  personalization: string[];
+  recommended_price_per_customer: number | null;
+  recommended_price_range: { low: number; high: number } | null;
+  source: string;
+}
+
+export interface GoToMarketIntelligence {
+  gtm_intelligence_version: string;
+  who_to_approach_first: string;
+  first_twenty_customers_source: string;
+  early_adopter_profile: string;
+  outreach_strategy: string;
+  distribution_channels: string[];
+  sales_motion: string;
+  validation_roadmap: string[];
+  expansion_roadmap: string[];
+  personalization: string[];
+  source: string;
+}
+
+export interface FeatureIdea {
+  idea: string;
+  why: string;
+}
+
+export interface NextBuildRecommendation {
+  idea: string | null;
+  why: string;
+  how_to_validate: string;
+  builds_on: string;
+}
+
+export interface FeatureIntelligence {
+  feature_intelligence_version: string;
+  differentiation_is_weak: boolean;
+  next_build_recommendation: NextBuildRecommendation;
+  framing_note: string;
+  ai_feature: FeatureIdea;
+  automation: FeatureIdea;
+  analytics: FeatureIdea;
+  integrations: FeatureIdea;
+  premium_tier: FeatureIdea;
+  enterprise_feature: FeatureIdea;
+  future_roadmap: FeatureIdea;
+  monetization_opportunity: FeatureIdea;
+  source: string;
+}
+
+export interface CompetitorIntelligence {
+  competitor_intelligence_version: string;
+  framing_note: string;
+  named_competitor_context: string;
+  likely_customer_alternatives: string[];
+  switching_behavior: string;
+  switching_friction: string;
+  how_to_win: string;
+  source: string;
+}
+
+/** Every previous flat section, kept intact one level deeper for depth-seekers — see
+ * backend/app/agents/founder_report.py's `_build_appendix`. Never part of the main consulting
+ * narrative (`FounderReport`'s top-level fields); collapsed by default in the UI. */
+export interface FounderReportAppendix {
+  executive_summary: TaggedText;
+  startup_snapshot: {
+    name: string;
+    positioning: TaggedText;
+    funding_readiness_level: TaggedText;
+  };
+  problem_analysis: TaggedText;
+  customer_analysis: TaggedText;
+  business_model: TaggedText;
+  market_position: TaggedText;
+  pricing_strategy: {
+    recommendation: TaggedText;
+    rationale: TaggedText[];
+  };
+  go_to_market_strategy: {
+    who_to_approach_first: TaggedText;
+    first_customers: TaggedText;
+    early_adopter_profile: TaggedText;
+    distribution_channels: TaggedText[];
+    sales_motion: TaggedText;
+    validation_roadmap: TaggedText[];
+    expansion_roadmap: TaggedText[];
+  };
+  competitive_landscape: {
+    summary: TaggedText;
+    likely_alternatives: TaggedText[];
+    switching_behavior: TaggedText;
+    switching_friction: TaggedText;
+    how_to_win: TaggedText;
+    similar_historical_ventures: TaggedText[];
+    comparative_pattern_summary: TaggedText[];
+    venture_space_analysis: TaggedText[];
+  };
+  product_roadmap: TaggedText[];
+  ai_feature_suggestions: TaggedText[];
+  risk_assessment: TaggedText[];
+  opportunity_assessment: TaggedText[];
+  funding_readiness: TaggedText;
+  historical_pattern_signal: TaggedText;
+  ninety_day_action_plan: TaggedText[];
+  final_mentor_verdict: TaggedText;
+  evidence_supporting_strengths: TaggedText[];
+  critical_blind_spots: {
+    title: TaggedText;
+    detail: TaggedText;
+    why_investors_care: TaggedText;
+  }[];
+  investor_questions: {
+    persona: string;
+    question: TaggedText;
+    grounded_in: TaggedText;
+  }[];
+  founder_challenge_mode: {
+    objection_category: string;
+    objection: TaggedText;
+    grounded_in: TaggedText;
+    how_to_overcome: TaggedText;
+  }[];
+  moat_intelligence: TaggedText[];
+  feature_gap_vs_market: TaggedText[];
+  funding_stage_ladder: {
+    current_stage: string | null;
+    next_stage: string | null;
+    what_moves_you_forward: TaggedText;
+    basis: TaggedText;
+  };
+  founder_iq_report: {
+    category_scores: Record<string, { understanding_level: string; basis: TaggedText }>;
+    knowledge_gaps: string[];
+    dominant_thinking_pattern: TaggedText | null;
+  };
+  pilot_roadmap: {
+    weeks: { week: number; focus: string; activities: string[] }[];
+    pilot_customers: TaggedText;
+    validation_metrics: TaggedText;
+    success_criteria: TaggedText;
+    pivot_conditions: TaggedText;
+    go_no_go_decision: TaggedText;
+  };
+  startup_benchmark: {
+    industry_positioning: TaggedText;
+    pricing_approach: TaggedText;
+    customer_acquisition_pattern: TaggedText;
+    typical_pilot_strategy: TaggedText;
+    common_mistakes: TaggedText;
+    typical_first_customer: TaggedText;
+    growth_path: TaggedText;
+    retrieved_ventures_used: { name: string; industry: string; similarity: number }[];
+  };
+  investor_intelligence: {
+    why_similar_ventures_succeed: TaggedText[];
+    why_similar_ventures_fail: TaggedText[];
+    likely_investor_objections: TaggedText[];
+    most_important_milestones: TaggedText[];
+    most_important_traction_metrics: TaggedText[];
+  };
+  industry_context: {
+    typical_customer: TaggedText;
+    buying_process: TaggedText;
+    customer_journey: TaggedText[];
+    common_integrations: TaggedText[];
+    expected_kpis: TaggedText[];
+    procurement_difficulty: TaggedText;
+    sales_cycle: TaggedText;
+    enterprise_objections: TaggedText[];
+    smb_objections: TaggedText[];
+    customer_acquisition_channels: TaggedText[];
+    retention_strategy: TaggedText;
+    expansion_triggers: TaggedText[];
+    enterprise_readiness_checklist: TaggedText[];
+    regulatory_considerations: TaggedText;
+    technical_stack_expectations: TaggedText;
+    typical_differentiation: TaggedText;
+    common_feature_roadmap: TaggedText[];
+  };
+  knowledge_transparency_note: string;
+}
+
+/** The Founder Report — rebuilt as one consulting engagement (Founder Consulting Experience
+ * Sprint) rather than a stack of independently-computed analyses. See
+ * backend/app/agents/founder_report.py's module docstring for the full information-architecture
+ * rationale. Every leaf is a `TaggedText` (or a list of them) so the category is always visible
+ * next to the claim; every previous section still exists, verbatim, inside `appendix`. */
+export interface FounderReport {
+  founder_report_version: string;
+  executive_verdict: {
+    overall_verdict: TaggedText;
+    one_sentence_summary: TaggedText;
+    biggest_opportunity: TaggedText;
+    biggest_risk: TaggedText;
+    investor_readiness: TaggedText;
+    current_stage: TaggedText;
+    highest_priority_action: TaggedText;
+  };
+  what_we_learned: TaggedText[];
+  three_biggest_problems: {
+    rank: number;
+    dimension: string;
+    problem: TaggedText;
+    evidence: TaggedText;
+    why_it_matters: TaggedText;
+    business_consequence: TaggedText;
+    if_ignored: TaggedText;
+    recommended_fix: TaggedText;
+  }[];
+  three_biggest_advantages: {
+    rank: number;
+    dimension: string;
+    advantage: TaggedText;
+    evidence: TaggedText;
+    why_it_matters: TaggedText;
+    business_value: TaggedText;
+    risk_if_unused: TaggedText;
+    how_to_leverage: TaggedText;
+  }[];
+  investor_view: {
+    dimension: string | null;
+    evidence: TaggedText;
+    investor_concern: TaggedText;
+    likely_objection: TaggedText | null;
+    how_to_answer: TaggedText | null;
+    investor_question: TaggedText | null;
+  }[];
+  founder_strategy: {
+    priority: number;
+    action: TaggedText;
+    reason: TaggedText;
+    impact: "High" | "Medium" | "Low";
+    difficulty: "Easy" | "Medium" | "Hard";
+    estimated_duration: string;
+    success_metric: TaggedText;
+    first_step: TaggedText;
+    definition_of_done: TaggedText;
+  }[];
+  moat_and_competitive_position: {
+    what_competitors_can_copy_today: TaggedText;
+    what_they_cannot_copy: TaggedText;
+    defensible_after_10_customers: TaggedText;
+    defensible_after_100_customers: TaggedText;
+    defensible_after_1000_customers: TaggedText;
+  };
+  market_insight: TaggedText[];
+  success_path: {
+    day_30: TaggedText;
+    day_90: TaggedText;
+    month_6: TaggedText;
+    month_12: TaggedText;
+  };
+  appendix: FounderReportAppendix;
+  disclaimer: string;
+}
+
 /** The single coherent, founder-facing mentor result (Full Mentor Orchestration phase) — see
  * backend/app/agents/mentor_schemas.py. `null` only for a run whose judge node itself failed, or
  * an older stored analysis persisted before this phase existed — always guard with `?.`/null
@@ -522,6 +833,12 @@ export interface MentorInterpretation {
   mentor_verdict: MentorVerdict;
   evidence_and_uncertainty: MentorEvidenceAndUncertainty;
   source_attribution: Record<string, string>;
+  mentor_advice_items?: { domain: string; category: string; text: string }[];
+  pricing_intelligence?: PricingIntelligence;
+  go_to_market_intelligence?: GoToMarketIntelligence;
+  feature_intelligence?: FeatureIntelligence;
+  competitor_intelligence?: CompetitorIntelligence;
+  founder_report?: FounderReport;
 }
 
 export type IdeaConfidenceTier = "confirmed_from_evidence" | "reasonable_hypothesis" | "speculative_future_opportunity";
@@ -705,6 +1022,11 @@ export interface Analysis {
   id: string;
   startup_id: string;
   status: "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+  /** Act IV (The Forging) live-progress fields — see backend/app/agents/stage_labels.py. Both
+   * null until the first real orchestrator node of this run has completed; once set, never
+   * cleared back to null (even after COMPLETED/FAILED — a late load still shows where it finished). */
+  current_node: string | null;
+  current_stage: string | null;
   industry_model_version: string | null;
   industry_prediction: IndustryPrediction | null;
   funding_rubric_version: string | null;

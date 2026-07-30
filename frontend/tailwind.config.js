@@ -3,6 +3,19 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      screens: {
+        // Design System Bible §10 / Implementation Master Plan §8 breakpoints,
+        // namespaced (`forge-*`) rather than overriding Tailwind's default `sm/md/
+        // lg/xl` — redefining those keys directly would silently reflow every
+        // still-untouched existing page's responsive layout (Sidebar/AppShell used
+        // the default `lg: 1024px` split, and studio result sections use `sm`/`md`
+        // throughout). New (`forge-*`-styled) components opt into these explicitly;
+        // nothing existing is affected.
+        "forge-sm": "768px",
+        "forge-md": "1024px",
+        "forge-lg": "1440px",
+        "forge-xl": "1920px",
+      },
       colors: {
         // Official brand palette, derived directly from the finalized VentureForgeAI logo.
         // Background black / deep surface / elevated surface.
@@ -58,8 +71,97 @@ export default {
           secondary: "#aeb5c8",
           muted: "#70788d",
         },
+
+        // ---------------------------------------------------------------------------
+        // Design System Bible §3–§6 palette (namespaced `forge-*`). Added alongside the
+        // block above rather than replacing it — existing pages (Sidebar, AppShell,
+        // AnalysisResult, etc.) still consume `void`/`signal`/`current`/`gold`/`ink`
+        // until each is migrated per the Implementation Master Plan's sprint sequence.
+        //
+        // Every value below resolves through a CSS custom property (src/index.css),
+        // not a literal hex — Tailwind normally bakes utility classes to literal
+        // color values at build time, which would make `data-theme="light"` a no-op
+        // for anything styled with `bg-forge-canvas` etc. Routing through `var(...)`
+        // is what makes the same utility class actually theme-reactive (Sprint 2:
+        // Theme integration). The CSS variables themselves (both dark default and the
+        // `[data-theme="light"]` override) live in src/index.css and must match
+        // src/tokens/forge.ts's raw values exactly (kept in sync by hand).
+        // ---------------------------------------------------------------------------
+        "forge-canvas": "var(--forge-canvas)",
+        "forge-surface-1": "var(--forge-surface-1)",
+        "forge-surface-2": "var(--forge-surface-2)",
+        "forge-surface-border": "var(--forge-surface-border)",
+        "forge-accent": {
+          DEFAULT: "var(--forge-accent)",
+          secondary: "var(--forge-accent-secondary)",
+          pressed: "var(--forge-accent-pressed)",
+        },
+        // Electric Purple — the structural/glass/glow accent (borders, ambient background,
+        // ForgeCore glow). `-tint` is the AA-text-safe version; `-deep` (Royal Violet) is
+        // decorative/gradient-only — it fails AA contrast as text, confirmed via the
+        // relative-luminance formula (2.84:1 on canvas).
+        "forge-accent-2": {
+          DEFAULT: "var(--forge-accent-2)",
+          tint: "var(--forge-accent-2-tint)",
+          deep: "var(--forge-accent-2-deep)",
+        },
+        // Soft Cyan — rare tertiary highlight only.
+        "forge-accent-3": "var(--forge-accent-3)",
+        // Neon Magenta — ambient/particle decoration only, never UI text/semantic color.
+        "forge-magenta": {
+          decorative: "var(--forge-magenta-decorative)",
+          tint: "var(--forge-magenta-tint)",
+        },
+        "forge-text": {
+          DEFAULT: "var(--forge-text)",
+          secondary: "var(--forge-text-secondary)",
+          tertiary: "var(--forge-text-tertiary)",
+          disabled: "var(--forge-text-disabled)",
+        },
+        "forge-confirmed": "var(--forge-confirmed)",
+        "forge-notsure": "var(--forge-notsure)",
+        "forge-risk": "var(--forge-risk)",
+        "forge-info": "var(--forge-info)",
+        "forge-heading": "var(--forge-heading)",
+        "forge-label": "var(--forge-label)",
+        "forge-gold": "var(--forge-gold)",
+        "forge-emerald": "var(--forge-emerald)",
+        "forge-rose": "var(--forge-rose)",
+        "forge-cyan": "var(--forge-cyan)",
+        "forge-desc": "var(--forge-desc)",
+        "forge-helper": "var(--forge-helper)",
+      },
+      borderRadius: {
+        // Design System Bible §3 — exactly three values, nothing else is ever used on
+        // new (`forge-*`-styled) components.
+        "forge-sm": "6px",
+        "forge-md": "12px",
+        "forge-lg": "20px",
+      },
+      fontSize: {
+        // Design System Bible §5 — the nine-step type scale, used exclusively by new
+        // components; existing pages keep their current ad hoc sizing until migrated.
+        "forge-1": "13px",
+        "forge-2": "15px",
+        "forge-3": "17px",
+        "forge-4": "20px",
+        "forge-5": "26px",
+        "forge-6": "34px",
+        "forge-7": "48px",
+        "forge-8": "64px",
+        "forge-9": "88px",
       },
       fontFamily: {
+        // Design System Bible §5 — the frozen three-family type system, namespaced
+        // `forge-*` so it doesn't collide with the legacy `display`/`body` stacks below
+        // (still read by unmigrated pages). `forge-serif` (Fraunces) is used exclusively
+        // for the one sentence per screen meant to be felt; `forge-sans` (Hanken
+        // Grotesk, standing in for the unpublished "General Sans" reference) is every
+        // functional surface; `forge-mono` (JetBrains Mono) is reserved strictly for
+        // scanned/compared numerals — never prose.
+        "forge-serif": ["Fraunces", "ui-serif", "Georgia", "serif"],
+        "forge-sans": ["'Hanken Grotesk'", "-apple-system", "'Segoe UI'", "sans-serif"],
+        "forge-mono": ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "monospace"],
         // A confident, large-scale grotesk-style system stack — no network font fetch, no
         // decorative serif. Weight and tracking carry the "premium" feel, not a novelty typeface.
         display: [
@@ -86,14 +188,20 @@ export default {
         "glow-sm": "0 0 24px -8px rgba(124, 44, 255, 0.45)",
         "glow-blue": "0 0 60px -14px rgba(22, 139, 255, 0.45)",
         "glow-gold": "0 0 50px -12px rgba(255, 157, 28, 0.45)",
+        // Cosmic glow family — used sparingly (GlassCard's `glow` prop, ForgeCore, the
+        // Threshold CTA) per the Rule of Subtraction, never as a default on every surface.
+        "glow-forge-accent": "0 0 60px -14px rgba(255, 176, 32, 0.55)",
+        "glow-forge-accent-2": "0 0 60px -14px rgba(139, 92, 246, 0.5)",
+        "glow-forge-accent-3": "0 0 50px -14px rgba(99, 230, 232, 0.4)",
+        // Exactly one elevated shadow level (`elevation-1`), reserved for the command
+        // capsule and dialogs only; nothing else reaches a second elevation level or uses
+        // a raw Tailwind shadow utility.
+        "forge-1": "var(--forge-elevation-1)",
       },
       transitionDuration: {
         400: "400ms",
         600: "600ms",
         900: "900ms",
-      },
-      backgroundImage: {
-        "grid-fine": "linear-gradient(rgba(255,255,255,0.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.035) 1px, transparent 1px)",
       },
       keyframes: {
         "pulse-slow": {
@@ -105,41 +213,21 @@ export default {
           "50%": { transform: "translate(6px, -8px)" },
           "100%": { transform: "translate(0, 0)" },
         },
-        "spin-slow": {
-          to: { transform: "rotate(360deg)" },
-        },
-        "spin-reverse-slow": {
-          from: { transform: "rotate(360deg)" },
-          to: { transform: "rotate(0deg)" },
-        },
-        reveal: {
-          "0%": { opacity: "0", transform: "translateY(14px) scale(0.98)" },
-          "100%": { opacity: "1", transform: "translateY(0) scale(1)" },
-        },
-        ignite: {
-          "0%": { filter: "drop-shadow(0 0 0px rgba(255,157,28,0))" },
-          "60%": { filter: "drop-shadow(0 0 42px rgba(255,157,28,0.85))" },
-          "100%": { filter: "drop-shadow(0 0 26px rgba(255,157,28,0.55))" },
-        },
-        sweep: {
-          "0%": { backgroundPosition: "-150% 0" },
-          "100%": { backgroundPosition: "250% 0" },
-        },
         float: {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
         },
         breathe: {
-          "0%, 100%": { filter: "drop-shadow(0 0 22px rgba(124,44,255,0.35))" },
-          "50%": { filter: "drop-shadow(0 0 42px rgba(124,44,255,0.6))" },
+          "0%, 100%": { filter: "drop-shadow(0 0 18px rgba(139,92,246,0.35)) drop-shadow(0 0 10px rgba(255,176,32,0.2))" },
+          "50%": { filter: "drop-shadow(0 0 34px rgba(139,92,246,0.55)) drop-shadow(0 0 18px rgba(255,176,32,0.35))" },
         },
         orbit: {
           from: { transform: "rotate(0deg) translateX(var(--orbit-radius)) rotate(0deg)" },
           to: { transform: "rotate(360deg) translateX(var(--orbit-radius)) rotate(-360deg)" },
         },
         "cta-breathe": {
-          "0%, 100%": { boxShadow: "0 0 30px -8px rgba(124,44,255,0.55)" },
-          "50%": { boxShadow: "0 0 46px -6px rgba(255,157,28,0.45)" },
+          "0%, 100%": { boxShadow: "0 0 30px -8px rgba(255,176,32,0.55)" },
+          "50%": { boxShadow: "0 0 46px -6px rgba(139,92,246,0.5)" },
         },
         "border-spin": {
           to: { backgroundPosition: "200% center" },
@@ -148,20 +236,23 @@ export default {
           "0%, 100%": { backgroundPosition: "0% 50%" },
           "50%": { backgroundPosition: "100% 50%" },
         },
+        // Extremely slow ambient background motion — starfield/nebula, never used for any
+        // UI element a founder needs to track.
+        "nebula-drift": {
+          "0%, 100%": { transform: "translate(0, 0) scale(1)", opacity: "0.55" },
+          "50%": { transform: "translate(3%, -2%) scale(1.05)", opacity: "0.75" },
+        },
       },
       animation: {
         "pulse-slow": "pulse-slow 3.5s ease-in-out infinite",
         drift: "drift 8s ease-in-out infinite",
-        "spin-slow": "spin-slow 14s linear infinite",
-        "spin-reverse-slow": "spin-reverse-slow 20s linear infinite",
-        reveal: "reveal 700ms cubic-bezier(0.16, 1, 0.3, 1) both",
-        ignite: "ignite 900ms ease-out both",
         float: "float 6s ease-in-out infinite",
         breathe: "breathe 4s ease-in-out infinite",
         orbit: "orbit linear infinite",
         "cta-breathe": "cta-breathe 3.2s ease-in-out infinite",
         "border-spin": "border-spin 3s linear infinite",
         "gradient-slow": "gradient-slow 8s ease-in-out infinite",
+        "nebula-drift": "nebula-drift 22s ease-in-out infinite",
       },
     },
   },

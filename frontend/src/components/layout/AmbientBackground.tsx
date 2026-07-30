@@ -1,21 +1,31 @@
-import { ParticleField } from "./ParticleField";
+import reportBackground from "../../assets/report-background.jpg";
+import { StarField } from "./StarField";
 
-/** Fixed, decorative-only ambient layer: a few slow-drifting glow orbs plus a sparse, unconnected
- * particle field behind all content — the app should feel quietly alive everywhere, while the
- * denser *connected* particle network (see VentureIntroPanel) stays reserved for the hero zone.
+/** The one cosmic backdrop for every screen except the Threshold (which paints its own full-bleed
+ * `landing-background.jpg` hero directly, see ThresholdPage.tsx). Mounted once, globally, by
+ * RootLayout — `report-background.jpg` behind a readability overlay strong enough for sustained
+ * dense reading (Reveal, the questionnaire, History), plus the same drifting/twinkling `StarField`
+ * used on the Threshold, so the whole app reads as one continuous space rather than a hero page
+ * bolted onto plain dashboard screens.
  *
  * Purely visual — carries no state and reacts to nothing. `aria-hidden` and `pointer-events-none`
- * keep it invisible to assistive tech and unable to intercept clicks. The global
- * `prefers-reduced-motion` rule in index.css freezes the drift/pulse animations for users who
- * request it; ParticleField itself also checks that media query directly for its own canvas loop.
- */
+ * keep it invisible to assistive tech and unable to intercept clicks. */
 export function AmbientBackground() {
   return (
     <div aria-hidden="true" className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute -left-32 -top-32 h-[36rem] w-[36rem] animate-drift rounded-full bg-signal-600/10 blur-[120px]" />
-      <div className="absolute -right-24 top-1/3 h-[28rem] w-[28rem] animate-drift rounded-full bg-current-500/10 blur-[110px] [animation-delay:-3s]" />
-      <div className="absolute bottom-[-10rem] left-1/3 h-[24rem] w-[24rem] animate-pulse-slow rounded-full bg-gold-500/5 blur-[100px]" />
-      <ParticleField />
+      {/* `bg-fixed` so the artwork reads as one continuous backdrop rather than repeating/
+          scrolling per-section as a page scrolls — confirmed live that `position:fixed` keeps it
+          visible in the viewport at every scroll depth, not just at the top. */}
+      <div
+        className="absolute inset-0 bg-fixed bg-cover bg-center opacity-70 blur-[1px]"
+        style={{ backgroundImage: `url(${reportBackground})` }}
+      />
+      {/* The readability layer: sustained dense reading can never fight the artwork for contrast,
+          so this overlay is deliberately heavy, plus a vignette that darkens the edges most, where
+          floating chrome (dock, command capsule) tends to sit. */}
+      <div className="absolute inset-0 bg-forge-canvas/60" />
+      <div className="absolute inset-0 [background:radial-gradient(ellipse_110%_80%_at_50%_35%,transparent_0%,rgba(7,6,13,0.75)_65%,rgba(7,6,13,0.96)_100%)]" />
+      <StarField density="quiet" />
     </div>
   );
 }

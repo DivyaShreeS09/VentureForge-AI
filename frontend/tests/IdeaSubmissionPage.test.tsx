@@ -1,8 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it } from "vitest";
+import { axe } from "jest-axe";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewAnalysisProvider } from "../src/context/NewAnalysisContext";
 import { IdeaSubmissionPage } from "../src/pages/IdeaSubmissionPage";
+import * as api from "../src/services/api";
 
 function renderPage() {
   return render(
@@ -17,47 +19,94 @@ function renderPage() {
 describe("IdeaSubmissionPage", () => {
   beforeEach(() => {
     window.localStorage.clear();
+    vi.spyOn(api, "previewIndustry").mockResolvedValue({
+      available: false,
+      predicted_industry: null,
+      confidence: null,
+      is_uncertain: null,
+      uncertainty_reasons: [],
+      secondary_industry: null,
+      secondary_confidence: null,
+      model_version: null,
+      customer_hints: [],
+      detected_keywords: [],
+    });
   });
 
-  it("blocks advancing past step 1 without a name", () => {
+  it("starts on the Opening Line", () => {
     renderPage();
-    fireEvent.change(screen.getByLabelText(/describe your startup idea in detail/i), {
+    expect(screen.getByRole("heading", { name: /what are you building/i })).toBeInTheDocument();
+  });
+
+  it("blocks Continue without a name", () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/what are you building\?/i), {
       target: { value: "A long enough description of the idea." },
     });
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/name is required/i);
-    expect(screen.getByText("Basic Information")).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/name/i);
   });
 
-  it("blocks advancing past step 1 with a too-short description", () => {
+  it("blocks Continue with a too-short description, even after the name field has appeared", async () => {
     renderPage();
-    fireEvent.change(screen.getByLabelText(/startup \/ idea name/i), { target: { value: "Nova" } });
-    fireEvent.change(screen.getByLabelText(/describe your startup idea in detail/i), {
-      target: { value: "short" },
-    });
+    const descriptionField = screen.getByLabelText(/what are you building\?/i);
+    fireEvent.change(descriptionField, { target: { value: "A long enough description to reveal the name field." } });
+    fireEvent.change(await screen.findByLabelText(/what should i call it/i), { target: { value: "Nova" } });
+    // Founder trims the description back down below the minimum before continuing.
+    fireEvent.change(descriptionField, { target: { value: "short" } });
+
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/at least 10 characters/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(/say a little more/i);
   });
 
-  it("advances to Business Model once step 1 is valid", () => {
+  it("advances to Who It's For once the Opening Line is valid", async () => {
     renderPage();
-    fireEvent.change(screen.getByLabelText(/startup \/ idea name/i), { target: { value: "Nova" } });
-    fireEvent.change(screen.getByLabelText(/describe your startup idea in detail/i), {
+    fireEvent.change(screen.getByLabelText(/what are you building\?/i), {
       target: { value: "A subscription analytics dashboard for retail teams." },
     });
+    fireEvent.change(await screen.findByLabelText(/what should i call it/i), { target: { value: "Nova" } });
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    expect(screen.getByRole("heading", { name: "Business Model" })).toBeInTheDocument();
+    expect(await screen.findByLabelText(/who specifically buys or uses this/i)).toBeInTheDocument();
+  });
+
+  it("advances from Who It's For to Where You Are", async () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/what are you building\?/i), {
+      target: { value: "A subscription analytics dashboard for retail teams." },
+    });
+    fireEvent.change(await screen.findByLabelText(/what should i call it/i), { target: { value: "Nova" } });
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await screen.findByLabelText(/who specifically buys or uses this/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(await screen.findByRole("radiogroup", { name: /where are you right now/i })).toBeInTheDocument();
+  });
+
+  it("Back steps to the previous scene", async () => {
+    renderPage();
+    fireEvent.change(screen.getByLabelText(/what are you building\?/i), {
+      target: { value: "A subscription analytics dashboard for retail teams." },
+    });
+    fireEvent.change(await screen.findByLabelText(/what should i call it/i), { target: { value: "Nova" } });
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    await screen.findByLabelText(/who specifically buys or uses this/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /back/i }));
+    expect(await screen.findByRole("heading", { name: /what are you building/i })).toBeInTheDocument();
   });
 
   it("autosaves idea fields to localStorage", () => {
     renderPage();
-    fireEvent.change(screen.getByLabelText(/startup \/ idea name/i), { target: { value: "Nova" } });
+    fireEvent.change(screen.getByLabelText(/what are you building\?/i), { target: { value: "Nova idea text" } });
 
-    const raw = window.localStorage.getItem("ventureforge.newAnalysis.v1");
+    const raw = window.localStorage.getItem("ventureforge.newAnalysis.v2");
     expect(raw).toBeTruthy();
-    expect(JSON.parse(raw as string).idea.name).toBe("Nova");
+    expect(JSON.parse(raw as string).idea.problemSolution).toBe("Nova idea text");
+  });
+
+  it("has no accessibility violations on the Opening Line", async () => {
+    const { container } = renderPage();
+    expect(await axe(container)).toHaveNoViolations();
   });
 });

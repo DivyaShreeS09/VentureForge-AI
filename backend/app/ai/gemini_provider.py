@@ -24,7 +24,7 @@ from app.ai.schemas import (
     CompetitorPossibilitiesContext,
     GeminiCompetitorPossibilities,
     GeminiIdeaExpansion,
-    GeminiMentorInterpretation,
+    GeminiMentorAdvice,
     GeminiPositioningRecommendation,
     GeminiStrategicOpportunity,
     IdeaExpansionContext,
@@ -37,8 +37,21 @@ from app.ai.schemas import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_MODEL = "gemini-2.0-flash"
-REQUEST_TIMEOUT_SECONDS = 8.0
+DEFAULT_MODEL = "gemini-flash-latest"
+# Product Intelligence Sprint — live-testing against a real key surfaced two silent-failure bugs
+# that made every Gemini call fall back to the deterministic path far more often than intended:
+# (1) `gemini-2.0-flash`'s free tier returns 429 RESOURCE_EXHAUSTED (limit: 0) on at least one real
+# project — `gemini-flash-latest` is the confirmed-working default. (2) newer Gemini models spend a
+# variable, often substantial number of tokens "thinking" before emitting the actual JSON answer
+# (observed: 1605 thinking tokens for one real mentor-advice prompt) — the old 1024-token budget
+# left zero room for the answer itself, truncating it before any JSON content, so every call
+# silently raised LLMUnavailable and fell back. `thinkingConfig.thinkingBudget=0` is NOT a fix —
+# this model rejects it with a 400 (thinking cannot be fully disabled). Raising the budget is the
+# correct fix. REQUEST_TIMEOUT_SECONDS was similarly too tight — measured real-world latency for a
+# realistic mentor prompt was 6.9s-10.4s across 3 runs, so the old 8.0s timeout was failing roughly
+# as often as it succeeded.
+REQUEST_TIMEOUT_SECONDS = 25.0
+MAX_OUTPUT_TOKENS = 8192
 API_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
@@ -65,7 +78,7 @@ class GeminiProvider:
                     "generationConfig": {
                         "responseMimeType": "application/json",
                         "temperature": 0.3,
-                        "maxOutputTokens": 1024,
+                        "maxOutputTokens": MAX_OUTPUT_TOKENS,
                     },
                 },
                 timeout=REQUEST_TIMEOUT_SECONDS,
@@ -114,12 +127,12 @@ class GeminiProvider:
         except ValidationError as exc:
             raise LLMUnavailable(f"Gemini competitor-possibilities response failed schema validation: {exc}") from exc
 
-    def generate_mentor_interpretation(self, context: MentorContext) -> GeminiMentorInterpretation:
+    def generate_mentor_advice(self, context: MentorContext) -> GeminiMentorAdvice:
         payload = self._call(build_mentor_prompt(context))
         try:
-            return GeminiMentorInterpretation.model_validate(payload)
+            return GeminiMentorAdvice.model_validate(payload)
         except ValidationError as exc:
-            raise LLMUnavailable(f"Gemini mentor response failed schema validation: {exc}") from exc
+            raise LLMUnavailable(f"Gemini mentor advice response failed schema validation: {exc}") from exc
 
     def generate_idea_expansion(self, context: IdeaExpansionContext) -> GeminiIdeaExpansion:
         payload = self._call(build_idea_expansion_prompt(context))

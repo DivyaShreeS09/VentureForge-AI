@@ -1,42 +1,71 @@
 import { Link } from "react-router-dom";
-import emblem from "../../assets/ventureforge-emblem.webp";
-import lockup from "../../assets/ventureforge-lockup.webp";
 
 interface Props {
-  /** "hero" is the large entrance mark on the venture-entry screen (the official emblem+wordmark
-   * lockup image); "compact" is the small top-bar mark used everywhere else (emblem image + a
-   * CSS text wordmark, since the source lockup's metallic type is illegible shrunk to nav size).
-   * Two sizes, not a prop-driven pile of one-off variants. */
+  /** "hero" is the large entrance mark on the venture-entry screen; "compact" is the small
+   * top-bar mark used everywhere else. Two sizes, not a prop-driven pile of one-off variants. */
   size?: "hero" | "compact";
   className?: string;
-  /** Only the entrance screen plays the reveal/ignite animation — repeating it on every route
-   * change would turn a meaningful moment into a tic. */
-  animate?: boolean;
+  /** Design System Bible §2 — in the Discovery Act, clicking the wordmark must open a
+   * confirm-before-exit dialog rather than navigate immediately (autosaved draft, but
+   * still a deliberate "leave for now?" moment). When provided, this intercepts the
+   * click (`preventDefault`) instead of the default immediate `Link to="/"` — every
+   * other usage is unaffected. */
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-/** The one place the official VentureForgeAI logo asset is rendered — every screen uses the same
- * source image so the product reads as one system, not several disconnected pages. */
-export function Wordmark({ size = "compact", className = "", animate = false }: Props) {
-  if (size === "hero") {
-    return (
-      <Link to="/" className={`inline-block ${className}`}>
-        <img
-          src={lockup}
-          alt="VentureForge AI"
-          className={`w-full max-w-[270px] drop-shadow-[0_0_50px_rgba(124,44,255,0.35)] sm:max-w-[300px] ${
-            animate ? "animate-reveal" : ""
-          }`}
-        />
-      </Link>
-    );
+/** The one place the VentureForge identity mark is set — every screen renders the same
+ * typographic lockup so the product reads as one system, not several disconnected pages.
+ *
+ * Stays deliberately typographic, not an illustrated glyph — a faceted multi-hue "VF" emblem was
+ * tried previously and read as a generated game/crypto mark, exactly the "hackathon AI" signal a
+ * first impression can't afford. Confident typography *is* the mark: "Venture" in a metallic
+ * silver sheen, "Forge" in the amber-to-orange energy gradient, at hero size only — the compact
+ * top-bar mark stays flat-color for legibility/perf.
+ *
+ * The Threshold's headline ("Is this idea worth building?"), not this mark, remains the one
+ * visual focal point of that screen (Hero Moment Requirement) — this mark gets a premium, very
+ * subtle breathing glow rather than growing to compete with it.
+ *
+ * "Forge" reads in the electric-purple brand accent (`forge-accent-2`) rather than amber/orange —
+ * purple is the brand identity per the logo; orange/gold stays reserved for CTAs, warnings, and
+ * energy moments (the small dot below keeps a single gold accent touch, not the whole word). */
+export function Wordmark({ size = "compact", className = "", onClick }: Props) {
+  function handleClick(e: React.MouseEvent) {
+    if (onClick) {
+      e.preventDefault();
+      onClick(e);
+    }
   }
 
+  const isHero = size === "hero";
+
   return (
-    <Link to="/" className={`inline-flex items-center gap-2.5 ${className}`}>
-      <img src={emblem} alt="" aria-hidden="true" className="h-8 w-auto drop-shadow-[0_0_10px_rgba(124,44,255,0.4)]" />
-      <span className="text-display text-lg text-ink-primary">
-        Venture<span className="text-gold-400">Forge</span> <span className="text-ink-secondary">AI</span>
+    <Link
+      to="/"
+      onClick={handleClick}
+      className={`group inline-flex items-baseline gap-[0.07em] whitespace-nowrap font-forge-sans font-semibold leading-none tracking-tight ${
+        isHero
+          ? "animate-breathe text-forge-4 forge-sm:text-forge-5"
+          : "text-forge-2 text-forge-text"
+      } ${className}`}
+    >
+      <span className={isHero ? "bg-gradient-to-b from-white via-forge-text to-forge-text-secondary bg-clip-text text-transparent" : "text-forge-text"}>
+        Venture
       </span>
+      <span
+        className={`relative mr-[0.22em] ${
+          isHero
+            ? "bg-gradient-to-r from-forge-accent-2-tint to-forge-accent-2 bg-clip-text text-transparent"
+            : "text-forge-accent-2"
+        }`}
+      >
+        Forge
+        <span
+          aria-hidden="true"
+          className="absolute -right-[0.2em] bottom-[0.14em] h-[0.11em] w-[0.11em] rounded-full bg-forge-accent transition-transform duration-300 group-hover:scale-125"
+        />
+      </span>
+      <span className="font-medium text-forge-text-tertiary">AI</span>
     </Link>
   );
 }

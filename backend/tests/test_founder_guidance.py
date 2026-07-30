@@ -49,8 +49,8 @@ def test_stage_softens_language_without_changing_category():
     idea_stage = build_founder_guidance_items(funding, market_evidence={"startup_stage": "Idea"})[0]
     growth_stage = build_founder_guidance_items(funding, market_evidence={"startup_stage": "Growth"})[0]
     assert idea_stage["category"] == growth_stage["category"] == "validation_opportunity"
-    assert "normal at this early a stage" in idea_stage["why_it_matters"]
-    assert "normal at this early a stage" not in growth_stage["why_it_matters"]
+    assert "completely normal this early on" in idea_stage["why_it_matters"]
+    assert "completely normal this early on" not in growth_stage["why_it_matters"]
 
 
 def test_priority_is_deterministic_and_1_indexed():

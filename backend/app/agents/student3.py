@@ -14,6 +14,7 @@ namespaced planning output (see app.agents.nodes' segment_customers_node etc. an
 
 from __future__ import annotations
 
+from app.agents.venture_vocabulary import with_article
 from app.ml.segmentation import SegmentationArtifactUnavailable, predict_customer_segment
 from app.schemas.student3 import (
     CustomerSegment, GrowthItem, InnovationOpportunity, PitchSlide, RankedAction, RiskItem,
@@ -64,10 +65,12 @@ def ranked_actions(funding: dict, industry: dict | None, segment: dict) -> list[
     stage = funding.get("level", "unknown").replace("_", " ")
     uncertainty = bool((industry or {}).get("is_uncertain", True))
     industry_basis = (
-        "Industry inference is uncertain; prioritize evidence collection before vertical-specific scaling."
+        "I'm not confident yet which industry this fits, so I'd focus on general evidence-gathering "
+        "before anything industry-specific."
         if uncertainty
-        else f"Industry model inference: {(industry or {}).get('predicted_industry', 'unknown')}"
+        else f"This fits what I'm already reading as {with_article((industry or {}).get('predicted_industry', 'unclear').replace('_', ' '))} venture."
     )
+    has_segment = segment.get("segment_name") not in (None, "Customer segmentation unavailable")
     actions: list[RankedAction] = []
     for item in funding.get("breakdown", []):
         dimension = item["dimension"]
@@ -86,8 +89,13 @@ def ranked_actions(funding: dict, industry: dict | None, segment: dict) -> list[
                 impact=impact,
                 effort=effort,
                 urgency=urgency,
-                evidence_basis=[f"Funding rubric: {item['label']} is {item['raw_score']}/2.", f"Readiness stage: {stage}.", f"Segment: {segment['segment_name']}.", industry_basis],
-                dependency="Customer evidence is required before scaling the recommendation." if dimension != "customer_pain_evidence" else "Recruit relevant interview participants.",
+                evidence_basis=[
+                    f"You haven't confirmed {item['label'].lower()} yet — that's exactly why this is worth doing next.",
+                    f"You're at the {stage} stage right now, which is exactly when this matters most.",
+                    f"This fits {segment['segment_name'].lower()}." if has_segment else "No specific customer segment is confirmed yet, so this applies broadly.",
+                    industry_basis,
+                ],
+                dependency="Get real customer evidence before you scale this." if dimension != "customer_pain_evidence" else "Recruit relevant interview participants.",
                 readiness_dimension=dimension,
                 ranking_version="next-action-rules-v1",
             )
@@ -96,31 +104,31 @@ def ranked_actions(funding: dict, industry: dict | None, segment: dict) -> list[
 
 
 def innovation(industry: dict | None, funding: dict) -> list[dict]:
-    domain = (industry or {}).get("predicted_industry", "the proposed domain")
+    domain = (industry or {}).get("predicted_industry", "").replace("_", " ") or "your space"
     missing = funding.get("missing_evidence", [])
     opportunities = [
-        InnovationOpportunity(category="feature", opportunity="Define a narrow, measurable user outcome.", rationale=f"The submission is inferred as {domain}; a focused outcome makes differentiation testable.", validation_requirement="Observe target users completing the intended workflow.", assumptions=["The submitted description identifies a recurring user problem."]),
-        InnovationOpportunity(category="operational", opportunity="Design the first customer workflow for repeatable delivery.", rationale="Operational requirements are not evidenced by the short submission.", validation_requirement="Run one pilot end-to-end and document manual steps, failure modes, and handoffs.", assumptions=["A pilot workflow can be observed."]),
-        InnovationOpportunity(category="defensibility", opportunity="Build defensibility from validated workflow learning, not unsupported IP claims.", rationale="No patent or proprietary-data evidence was provided.", validation_requirement="Document why users choose the workflow over named alternatives.", assumptions=["Customer feedback can be collected."]),
-        InnovationOpportunity(category="ip_direction", opportunity="Maintain an invention and data-provenance log while validating the product.", rationale="This identifies possible future protection directions without claiming novelty or patentability.", validation_requirement="Seek qualified IP advice only after documenting a concrete technical contribution.", assumptions=["The team can maintain dated product records."]),
+        InnovationOpportunity(category="feature", opportunity="Define a narrow, measurable user outcome.", rationale=f"You're building in what I'm reading as {domain} — a focused outcome is what will make your differentiation actually testable.", validation_requirement="Observe target users completing the intended workflow.", assumptions=["The submitted description identifies a recurring user problem."]),
+        InnovationOpportunity(category="operational", opportunity="Design the first customer workflow for repeatable delivery.", rationale="You haven't shown me yet how this actually gets delivered day-to-day — that's worth designing before you scale.", validation_requirement="Run one pilot end-to-end and document manual steps, failure modes, and handoffs.", assumptions=["A pilot workflow can be observed."]),
+        InnovationOpportunity(category="defensibility", opportunity="Build defensibility from validated workflow learning, not unsupported IP claims.", rationale="You haven't shown me a patent or proprietary data yet, and that's fine — real defensibility usually comes from what you learn running the workflow, not a claim on paper.", validation_requirement="Document why users choose the workflow over named alternatives.", assumptions=["Customer feedback can be collected."]),
+        InnovationOpportunity(category="ip_direction", opportunity="Maintain an invention and data-provenance log while validating the product.", rationale="This just keeps your future options open — it's not a claim that anything here is novel or patentable yet.", validation_requirement="Seek qualified IP advice only after documenting a concrete technical contribution.", assumptions=["The team can maintain dated product records."]),
     ]
     if "product_maturity" in missing:
-        opportunities.append(InnovationOpportunity(category="technical", opportunity="Prototype the smallest technical uncertainty first.", rationale="Product maturity was not evidenced in the readiness input.", validation_requirement="Run a time-boxed prototype test against one acceptance criterion.", assumptions=["A prototype is feasible with available resources."]))
+        opportunities.append(InnovationOpportunity(category="technical", opportunity="Prototype the smallest technical uncertainty first.", rationale="You haven't shown me a working prototype yet — proving the riskiest technical piece first is the cheapest way to find out if this works.", validation_requirement="Run a time-boxed prototype test against one acceptance criterion.", assumptions=["A prototype is feasible with available resources."]))
     return [item.model_dump() for item in opportunities]
 
 
 def risks(funding: dict, industry: dict | None) -> list[dict]:
     missing = set(funding.get("missing_evidence", []))
     definitions = [
-        ("market", "Unvalidated customer problem", "customer_pain_evidence", "Interview target users before committing scope.", "Interviews do not describe a repeated costly problem."),
-        ("adoption", "Unproven adoption path", "traction", "Run a bounded pilot with a clear activation event.", "Pilot participants do not reach activation."),
-        ("competition", "Differentiation is not evidenced", "competitive_differentiation", "Compare the proposed workflow with alternatives in customer interviews.", "Prospects cannot explain why they would switch."),
-        ("technical", "Core technical uncertainty is not evidenced", "product_maturity", "Prototype the riskiest technical assumption before broadening scope.", "The prototype cannot meet its stated acceptance criterion."),
-        ("operations", "Delivery workflow is not evidenced", "product_maturity", "Document the first pilot workflow, owners, and operational handoffs.", "Pilot delivery repeatedly relies on unplanned manual work."),
-        ("financial", "Pricing evidence is missing", "revenue_model_clarity", "Test willingness to pay before forecasting revenue.", "Prospects decline a pricing conversation."),
-        ("regulatory_legal", "Applicable regulatory and legal obligations are unknown", "product_maturity", "Identify the product's data, geography, and sector context and obtain qualified advice where appropriate.", "A target customer requires compliance evidence the team cannot provide."),
-        ("execution_team", "Execution capacity is not evidenced", "team_completeness", "Identify the capability owner for the highest-risk milestone.", "No accountable owner is named."),
-        ("privacy_security", "Privacy and security requirements are unknown", "product_maturity", "Identify data handled and seek appropriate professional review where needed.", "The MVP requires sensitive data without controls."),
+        ("market", "You haven't confirmed this problem is real yet", "customer_pain_evidence", "Interview target users before committing scope.", "Interviews do not describe a repeated costly problem."),
+        ("adoption", "It's not yet proven people will actually adopt this", "traction", "Run a bounded pilot with a clear activation event.", "Pilot participants do not reach activation."),
+        ("competition", "Your differentiation isn't proven yet", "competitive_differentiation", "Compare the proposed workflow with alternatives in customer interviews.", "Prospects cannot explain why they would switch."),
+        ("technical", "There's a core technical uncertainty you haven't resolved", "product_maturity", "Prototype the riskiest technical assumption before broadening scope.", "The prototype cannot meet its stated acceptance criterion."),
+        ("operations", "How you'll actually deliver this isn't proven yet", "product_maturity", "Document the first pilot workflow, owners, and operational handoffs.", "Pilot delivery repeatedly relies on unplanned manual work."),
+        ("financial", "You don't have pricing evidence yet", "revenue_model_clarity", "Test willingness to pay before forecasting revenue.", "Prospects decline a pricing conversation."),
+        ("regulatory_legal", "You haven't confirmed what regulatory or legal obligations apply", "product_maturity", "Identify the product's data, geography, and sector context and obtain qualified advice where appropriate.", "A target customer requires compliance evidence the team cannot provide."),
+        ("execution_team", "It's not yet clear your team can execute this", "team_completeness", "Identify the capability owner for the highest-risk milestone.", "No accountable owner is named."),
+        ("privacy_security", "You haven't worked out your privacy and security needs yet", "product_maturity", "Identify data handled and seek appropriate professional review where needed.", "The MVP requires sensitive data without controls."),
     ]
     result = []
     for category, title, dimension, mitigation, warning in definitions:
@@ -132,7 +140,10 @@ def risks(funding: dict, industry: dict | None) -> list[dict]:
                 probability_band="high" if absent else "medium",
                 impact_band="high" if category in {"market", "financial", "privacy_security"} else "medium",
                 severity="high" if absent else "medium",
-                evidence_basis=[f"Funding readiness input for {dimension}: {'missing' if absent else 'provided'}.", "No legal, security, revenue, or customer claim is inferred beyond the submitted evidence."],
+                evidence_basis=[
+                    "You haven't given me evidence on this yet." if absent else "You've already given me evidence here — worth keeping current as you learn more.",
+                    "I'm not inferring any legal, security, revenue, or customer claim beyond what you've actually submitted.",
+                ],
                 mitigation=mitigation,
                 early_warning_indicator=warning,
                 assumptions=["This is a planning risk, not a legal or regulatory conclusion."],
@@ -142,49 +153,54 @@ def risks(funding: dict, industry: dict | None) -> list[dict]:
 
 
 def growth_strategy(segment: dict, actions: list[dict], industry: dict | None) -> list[dict]:
-    primary = actions[0]["title"] if actions else "Maintain and verify readiness evidence"
-    domain = (industry or {}).get("predicted_industry", "unknown")
+    primary = actions[0]["title"] if actions else "Keep confirming your readiness evidence is still current"
+    domain = (industry or {}).get("predicted_industry", "").replace("_", " ") or "your space"
     channels = segment.get("recommended_channels") or []
     acquisition = (
         f"Reach {segment['segment_name']} through {channels[0].lower()}."
         if channels
-        else "Evidence required: provide customer-segment or channel data before selecting an acquisition channel."
+        else "You haven't given me a customer segment or channel yet — that's what to nail down before picking how you'll acquire customers."
     )
     items = [
-        GrowthItem(area="validation", recommendation=primary, rationale="Highest-ranked action from the readiness gaps.", dependency="A defined interview or pilot cohort.", assumptions=["Readiness inputs remain current."]),
-        GrowthItem(area="acquisition", recommendation=acquisition, rationale="Channel selection requires a trained customer segment or direct channel evidence.", dependency="A testable value proposition.", assumptions=[f"The inferred industry ({domain}) is directionally useful."]),
-        GrowthItem(area="partnership", recommendation="Identify one ecosystem partner that already reaches the working segment and validate mutual value before proposing a partnership.", rationale="No partnership evidence was supplied, so this is a discovery step rather than a claimed channel.", dependency="A clearly defined pilot outcome.", assumptions=["Relevant ecosystem intermediaries exist."]),
-        GrowthItem(area="retention", recommendation="Define the recurring value event that should bring pilot users back, then measure it during the pilot.", rationale="No retention evidence was supplied.", dependency="An instrumented pilot workflow.", assumptions=["The product has a repeat-use case."]),
-        GrowthItem(area="expansion", recommendation="Expand only after the initial segment demonstrates repeatable activation and retention.", rationale="The current segment is a hypothesis and should not be generalized prematurely.", dependency="Evidence from the initial pilot cohort.", assumptions=["The initial segment can be measured consistently."]),
-        GrowthItem(area="experiment", recommendation="Run one channel test with a pre-defined activation metric and stopping rule.", rationale="No traction or conversion evidence was supplied.", dependency="Instrumented landing page, outreach, or pilot workflow.", assumptions=["A small test can be run ethically."]),
-        GrowthItem(area="kpi", recommendation="Track interviews completed, activated pilots, and retained pilot users; do not report revenue until evidenced.", rationale="These measures distinguish learning from unsupported traction.", dependency="A consistent event definition.", assumptions=["Pilot users consent to measurement."]),
+        GrowthItem(area="validation", recommendation=primary, rationale="This is your highest-priority open question right now.", dependency="A defined interview or pilot cohort.", assumptions=["Readiness inputs remain current."]),
+        GrowthItem(area="acquisition", recommendation=acquisition, rationale="Picking a channel with confidence needs either a trained customer segment or real channel evidence — you don't have either yet.", dependency="A testable value proposition.", assumptions=[f"Being in {domain} is directionally useful context."]),
+        GrowthItem(area="partnership", recommendation="Identify one ecosystem partner that already reaches the working segment and validate mutual value before proposing a partnership.", rationale="You haven't shown me partnership evidence yet, so this is worth exploring, not something to bank on.", dependency="A clearly defined pilot outcome.", assumptions=["Relevant ecosystem intermediaries exist."]),
+        GrowthItem(area="retention", recommendation="Define the recurring value event that should bring pilot users back, then measure it during the pilot.", rationale="You haven't shown me retention evidence yet — that's the next thing worth defining.", dependency="An instrumented pilot workflow.", assumptions=["The product has a repeat-use case."]),
+        GrowthItem(area="expansion", recommendation="Expand only after the initial segment demonstrates repeatable activation and retention.", rationale="Your current segment is still a hypothesis — proving it first keeps you from over-extending too soon.", dependency="Evidence from the initial pilot cohort.", assumptions=["The initial segment can be measured consistently."]),
+        GrowthItem(area="experiment", recommendation="Run one channel test with a pre-defined activation metric and stopping rule.", rationale="You haven't shown me traction or conversion evidence yet, so a small, bounded test is the right next step.", dependency="Instrumented landing page, outreach, or pilot workflow.", assumptions=["A small test can be run ethically."]),
+        GrowthItem(area="kpi", recommendation="Track interviews completed, activated pilots, and retained pilot users; hold off on reporting revenue until it's real.", rationale="These are the numbers that show you're actually learning, not just staying busy.", dependency="A consistent event definition.", assumptions=["Pilot users consent to measurement."]),
     ]
     return [item.model_dump() for item in items]
 
 
 def pitch_deck(name: str, description: str, industry: dict | None, funding: dict, segment: dict, actions: list[dict]) -> list[dict]:
-    domain = (industry or {}).get("predicted_industry", "unknown")
-    next_milestone = actions[0]["title"] if actions else "evidence required"
+    domain = (industry or {}).get("predicted_industry", "").replace("_", " ") or "an unclear space"
+    next_milestone = actions[0]["title"] if actions else "closing your next evidence gap"
     channels = segment.get("recommended_channels") or []
-    go_to_market = f"Start with {channels[0].lower()} for the trained segment." if channels else "Evidence required: a trained segment assignment or channel test result."
+    has_segment = segment.get("segment_name") not in (None, "Customer segmentation unavailable")
+    go_to_market = (
+        f"Start with {channels[0].lower()} for {segment['segment_name'].lower()}."
+        if channels
+        else "You haven't confirmed a segment or channel yet — that's the next thing to test, not something to guess at here."
+    )
     slides = [
         PitchSlide(title="Title", content=[name, description], evidence_status="verified evidence"),
-        PitchSlide(title="Problem", content=["Problem framing is based on the submitted description.", "Evidence required: customer interviews confirming frequency and cost."], evidence_status="evidence required"),
+        PitchSlide(title="Problem", content=["This framing comes straight from your own description.", "What's still missing: customer interviews confirming how often this happens and what it costs them."], evidence_status="evidence required"),
         PitchSlide(title="Solution", content=[description], evidence_status="verified evidence"),
-        PitchSlide(title="Market", content=[f"Industry model inference: {domain}.", "Unknown: market size; do not add a number without a source."], evidence_status="model inference"),
-        PitchSlide(title="Customer", content=[f"Working segment: {segment['segment_name']}.", "Validate this segment before using it as a market fact."], evidence_status="deterministic assessment"),
-        PitchSlide(title="Product", content=["Evidence required: a demonstrable MVP or prototype outcome."], evidence_status="evidence required"),
-        PitchSlide(title="Differentiation", content=["Evidence required: comparison with the alternatives customers use today."], evidence_status="evidence required"),
-        PitchSlide(title="Business Model", content=["Unknown: no pricing or unit-economics evidence was supplied."], evidence_status="unknown"),
-        PitchSlide(title="Traction and evidence", content=["Unknown: no revenue, customers, or partnerships were supplied.", f"Next evidence milestone: {next_milestone}."], evidence_status="unknown"),
-        PitchSlide(title="Go-to-Market", content=[go_to_market, "Evidence required: channel activation results."], evidence_status="evidence required" if not channels else "deterministic assessment"),
-        PitchSlide(title="Competition", content=["Evidence required: named alternatives and customer switching rationale."], evidence_status="evidence required"),
-        PitchSlide(title="Financial Outlook", content=["Unknown: no revenue, cost, pricing, or forecast evidence was supplied."], evidence_status="unknown"),
-        PitchSlide(title="Risks and next milestone", content=["Address readiness gaps before making a funding ask.", f"Current readiness assessment: {funding.get('overall_score', 0)}/100 (deterministic rubric)."], evidence_status="deterministic assessment"),
-        PitchSlide(title="Team", content=["Evidence required: team roles and capability coverage were not supplied."], evidence_status="evidence required"),
-        PitchSlide(title="Funding Ask or Next Milestone", content=[f"Next milestone: {next_milestone}.", "Unknown: no funding ask was supplied."], evidence_status="unknown"),
-        PitchSlide(title="Closing Vision", content=["Assumption: the submitted problem can be validated with a focused early-adopter workflow."], evidence_status="assumption"),
-        PitchSlide(title="Executive Summary", content=[f"{name}: validate the stated problem with {segment['segment_name']} before claiming traction or market size."], evidence_status="deterministic assessment"),
-        PitchSlide(title="Demo Script", content=["Show the target user's current problem, the smallest proposed workflow, and the observable outcome to validate."], evidence_status="assumption"),
+        PitchSlide(title="Market", content=[f"I'm reading this as {domain}.", "Unknown: market size — I won't put a number here without a real source behind it."], evidence_status="model inference"),
+        PitchSlide(title="Customer", content=[f"Working segment: {segment['segment_name']}." if has_segment else "You haven't confirmed a specific segment yet.", "Validate this before you present it as settled."], evidence_status="deterministic assessment"),
+        PitchSlide(title="Product", content=["What's still missing: a demonstrable MVP or prototype outcome to show."], evidence_status="evidence required"),
+        PitchSlide(title="Differentiation", content=["What's still missing: a real comparison against the alternatives customers use today."], evidence_status="evidence required"),
+        PitchSlide(title="Business Model", content=["Unknown: no pricing or unit-economics evidence has been given yet."], evidence_status="unknown"),
+        PitchSlide(title="Traction and evidence", content=["Unknown: no revenue, customers, or partnerships have been confirmed yet.", f"Your next evidence milestone: {next_milestone}."], evidence_status="unknown"),
+        PitchSlide(title="Go-to-Market", content=[go_to_market, "What's still missing: real results from actually running that channel."], evidence_status="evidence required" if not channels else "deterministic assessment"),
+        PitchSlide(title="Competition", content=["What's still missing: named alternatives and a clear reason customers would switch."], evidence_status="evidence required"),
+        PitchSlide(title="Financial Outlook", content=["Unknown: no revenue, cost, pricing, or forecast evidence has been given yet."], evidence_status="unknown"),
+        PitchSlide(title="Risks and next milestone", content=["Close your readiness gaps before you make a funding ask.", f"Where you stand today: {funding.get('overall_score', 0)}/100 on my internal readiness read."], evidence_status="deterministic assessment"),
+        PitchSlide(title="Team", content=["What's still missing: your team's roles and how they cover the skills this needs."], evidence_status="evidence required"),
+        PitchSlide(title="Funding Ask or Next Milestone", content=[f"Your next milestone: {next_milestone}.", "Unknown: no funding ask has been defined yet."], evidence_status="unknown"),
+        PitchSlide(title="Closing Vision", content=["Working assumption: this problem can be validated with a focused early-adopter workflow."], evidence_status="assumption"),
+        PitchSlide(title="Executive Summary", content=[f"{name}: prove the problem is real with {segment['segment_name'] if has_segment else 'a real first segment'} before claiming traction or market size."], evidence_status="deterministic assessment"),
+        PitchSlide(title="Demo Script", content=["Show the target user's current problem, the smallest proposed workflow, and the observable outcome you're trying to validate."], evidence_status="assumption"),
     ]
     return [item.model_dump() for item in slides]

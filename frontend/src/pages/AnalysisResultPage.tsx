@@ -1,77 +1,73 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { AnalysisResult } from "../components/results/AnalysisResult";
-import { CommandBar } from "../components/results/CommandBar";
+import { Reveal } from "../components/reveal/Reveal";
 import { ErrorBanner, LoadingBanner } from "../components/status/StatusBanner";
 import { useAsync } from "../hooks/useAsync";
-import { analyzeStartup, getAnalysis, getStartup } from "../services/api";
-import { recordAnalysis } from "../services/localHistory";
+import { getAnalysis, getStartup } from "../services/api";
+import { deleteHistoryEntry, recordAnalysis } from "../services/localHistory";
 
 export function AnalysisResultPage() {
   const { analysisId } = useParams<{ analysisId: string }>();
   const navigate = useNavigate();
-  const { data, loading, error, run } = useAsync(getAnalysis);
-  const [startupName, setStartupName] = useState<string | null>(null);
+  const { data, loading, error, errorStatus, run } = useAsync(getAnalysis);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [startupName, setStartupName] = useState<string | null>(null);
 
   useEffect(() => {
     if (analysisId) run(analysisId);
   }, [analysisId, run]);
 
   useEffect(() => {
-    if (!data) return;
+    // A 404 here means the backend has genuinely never heard of this ID (dev DB reset, manual
+    // deletion) — self-heal by pruning the matching local History row so it stops offering a
+    // permanently-broken "View" link, rather than leaving a stale reference around forever.
+    if (analysisId && errorStatus === 404) deleteHistoryEntry(analysisId);
+  }, [analysisId, errorStatus]);
+
+  useEffect(() => {
+    if (!data || data.status !== "COMPLETED") return;
     let cancelled = false;
     getStartup(data.startup_id)
       .then((startup) => {
-        if (!cancelled) {
-          setStartupName(startup.name);
-          if (data.status === "COMPLETED") recordAnalysis(startup.name, data);
-        }
+        if (cancelled) return;
+        recordAnalysis(startup.name, data);
+        // The Executive Hero (Operating System Sprint) needs the real startup name above the
+        // fold — this endpoint was already being fetched for local history, just not surfaced.
+        setStartupName(startup.name);
       })
       .catch(() => {
-        /* The command bar shows a graceful fallback label — this lookup is presentational only. */
+        /* Local history is a browser-side convenience only — a lookup failure here never blocks the Reveal itself. */
       });
     return () => {
       cancelled = true;
     };
   }, [data]);
 
-  async function handleReanalyze() {
+  function handleReanalyze() {
     if (!data) return;
     setReanalyzing(true);
-    try {
-      const next = await analyzeStartup(data.startup_id);
-      navigate(`/analyses/${next.id}`);
-    } finally {
-      setReanalyzing(false);
-    }
+    // Route through the same polling status page a first-time analysis uses
+    // (`EvidenceCollectionPage.tsx` navigates here too) rather than creating the analysis here
+    // and jumping straight to Reveal. `POST /startups/{id}/analyze` returns immediately with the
+    // row still RUNNING (see AnalysisStatusPage's own docstring) — fetching it once and rendering
+    // Reveal right away meant `mentor_interpretation` was reliably still null, producing "This
+    // analysis has no mentor interpretation to reveal." `AnalysisStatusPage` already knows how to
+    // create the analysis *and* poll it via `useAnalysisProgress` until it's genuinely COMPLETED
+    // before navigating to Reveal — reusing it here fixes the root cause instead of adding a
+    // second polling implementation.
+    navigate(`/startups/${data.startup_id}/status`);
   }
 
-  return (
-    <div className="min-h-screen">
-      {data && (
-        <CommandBar
-          startupName={startupName}
-          status={data.status}
-          modelVersion={data.industry_model_version}
-          timestamp={data.updated_at}
-          onReanalyze={handleReanalyze}
-          reanalyzing={reanalyzing}
-        />
-      )}
-      <main className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
-        {!data && (
-          <>
-            <p className="text-xs font-medium uppercase tracking-[0.25em] text-signal-400">Venture Blueprint</p>
-            <h1 className="mt-2 text-display text-3xl">Assessment Results</h1>
-          </>
-        )}
-        <div className="mt-8">
+  if (loading || error || !data) {
+    return (
+      <main className="min-h-[100dvh] font-forge-sans">
+        <div className="mx-auto max-w-[860px] px-6 py-20 forge-sm:px-10">
           {loading && <LoadingBanner message="Loading analysis..." />}
           {error && <ErrorBanner message={error} />}
-          {data && <AnalysisResult analysis={data} startupName={startupName} />}
         </div>
       </main>
-    </div>
-  );
+    );
+  }
+
+  return <Reveal analysis={data} onReanalyze={handleReanalyze} reanalyzing={reanalyzing} startupName={startupName} />;
 }

@@ -39,6 +39,12 @@ from app.ml.local_success_explainer import explain_local_prediction  # noqa: E40
 
 MODEL_NAME = "success_predictor"
 MODEL_VERSION = "v1"
+# Final ML Excellence Sprint, Phase 4 (Version Cleanup): the artifact metadata's own
+# `dataset_version` field is an internal experiment-tracking label (e.g.
+# "v2-crunchbase-2013-date-features") -- useful for engineers reading metadata.json directly, but
+# must never surface in the API/frontend per this sprint's rule. This product has never shipped,
+# so there is nothing for "v2" to be a version bump FROM from a founder's perspective.
+PUBLIC_DATASET_LABEL = "Historical Pattern Dataset"
 
 # Below this top-1 probability margin from 0.5, the prediction is reported as uncertain rather
 # than a confident fact — a coin-flip-adjacent probability carries little decision value.
@@ -210,10 +216,10 @@ def predict_success(
         "pattern_signal_sentence": pattern_signal_sentence,
         "predicted_label": predicted_label,
         "success_probability": round(proba, 4),
-        "model_version": metadata["version"],
+        "model_version": MODEL_VERSION,
         "model_pipeline": metadata.get("selected_algorithm", metadata.get("selected_pipeline", "unknown")),
         "calibration_method": metadata.get("calibration_method", "unknown"),
-        "dataset_version": metadata.get("dataset_version", "unknown"),
+        "dataset_version": PUBLIC_DATASET_LABEL,
         "missing_features": missing_features,
         "is_uncertain": is_uncertain,
         "uncertainty_reasons": uncertainty_reasons,

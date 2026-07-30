@@ -309,6 +309,7 @@ def strategic_opportunity_node(state: OrchestratorState) -> dict:
     baseline = build_deterministic_strategic_opportunity(
         venture_positioning, market_intelligence, customer_personas, business_model,
         competitor_analysis, feature_gap, founder_guidance_items, funding_assessment,
+        startup_description=startup_description,
     )
     context = build_strategic_opportunity_context(
         startup_name, startup_description, venture_positioning, market_intelligence,

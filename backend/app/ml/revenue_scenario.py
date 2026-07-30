@@ -156,9 +156,8 @@ def estimate_revenue_scenario(
         # type, which now prefers `assumptions` but still accepts this.
         "assumptions_used": {field: entry["value"] for field, entry in resolved.items()},
         "disclaimer": (
-            "Deterministic scenario calculator, not a trained model, not historical data, and not "
-            "a guarantee of actual revenue. Every field is either the founder's own supplied "
-            "assumption or a clearly labeled suggested default (never presented as a fact) — see "
-            "`assumptions` for per-field provenance."
+            "This is a calculator, not a prediction — it's not based on historical data and it's "
+            "not a guarantee of what you'll actually make. Every number below is either one you "
+            "gave me or a clearly labeled placeholder; look at each field to see which is which."
         ),
     }

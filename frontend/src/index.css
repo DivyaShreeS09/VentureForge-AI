@@ -31,6 +31,57 @@
   --vf-warning: #f5b942;
   --vf-danger: #ff5a6b;
 
+  /* -------------------------------------------------------------------------------
+     Cosmic Command-Center tokens (namespaced --forge-*) — one premium dark theme,
+     intentionally the only theme (no light variant). Roles are deliberate, not a
+     free-for-all: accent (amber gold -> orange energy) is the one CTA/energy color;
+     accent-2 (electric purple) is the structural/glass/glow accent (card borders,
+     focus glows) — never used for starfield particles; accent-3 (soft cyan) is a rare
+     tertiary highlight, same rule; accent-2-deep (royal violet) and
+     magenta-decorative (neon magenta) are glass/glow decoration only — confirmed via
+     contrast math that their saturated values fail AA as text, so tinted variants
+     exist for any place they must be legible. The starfield itself (ParticleField/
+     LightField) stays strictly warm-gold/white, never these accents.
+     Values must match src/tokens/forge.ts and tailwind.config.js exactly. */
+  --forge-canvas: #07060d;
+  --forge-surface-1: #120b24;
+  --forge-surface-2: #1b1333;
+  --forge-surface-border: rgba(139, 92, 246, 0.22);
+  --forge-accent: #ffb020;
+  --forge-accent-secondary: #ff7a1a;
+  --forge-accent-pressed: #e6672f;
+  --forge-accent-2: #8b5cf6;
+  --forge-accent-2-tint: #b39dff;
+  --forge-accent-2-deep: #6d28d9;
+  --forge-accent-3: #63e6e8;
+  --forge-magenta-decorative: #e0299b;
+  --forge-magenta-tint: #ff7ac6;
+  --forge-text: #f8f9fc;
+  --forge-text-secondary: rgba(248, 249, 252, 0.72);
+  --forge-text-tertiary: rgba(248, 249, 252, 0.48);
+  --forge-text-disabled: rgba(248, 249, 252, 0.24);
+  --forge-confirmed: #6fa287;
+  --forge-notsure: #c9a24a;
+  --forge-risk: #e0637a;
+  /* "Confidence" semantic label color (typography hierarchy pass) — the rest of the palette had
+     no blue, every other hue already carries a different meaning (purple = metrics/structure,
+     gold = funding, cyan = rare tertiary highlight, green/amber/red = confirmed/unsure/risk). */
+  --forge-info: #5b9dff;
+  /* Typography color system (visual-polish pass) — a dedicated palette for body copy, distinct
+     from the chrome accents above (buttons/borders/glows keep their existing tokens). Exact hex
+     values as specified: headings pure white, section labels purple, funding/scores gold,
+     success emerald, risk rose, AI insight/recommendation keywords cyan, descriptions a soft
+     gray, helper text more muted still. */
+  --forge-heading: #ffffff;
+  --forge-label: #b78cff;
+  --forge-gold: #ffc857;
+  --forge-emerald: #5ef38c;
+  --forge-rose: #ff6a88;
+  --forge-cyan: #57e7ff;
+  --forge-desc: #c7cad8;
+  --forge-helper: #9ea3b8;
+  --forge-elevation-1: 0 12px 40px -12px rgba(7, 6, 13, 0.55);
+
   --vf-glow-violet: 0 0 60px -12px rgba(124, 44, 255, 0.5);
   --vf-glow-blue: 0 0 60px -14px rgba(22, 139, 255, 0.45);
   --vf-glow-gold: 0 0 50px -12px rgba(255, 157, 28, 0.45);
@@ -55,20 +106,15 @@ body,
    image) is now contained locally at its own element instead — see AnalysisResult.tsx. */
 
 body {
-  @apply bg-void-950 font-body antialiased;
-  color: var(--vf-text-secondary);
+  @apply bg-forge-canvas font-body antialiased;
+  color: var(--forge-text-secondary);
+  /* Cosmic base wash behind every page — soft nebula glow only, no grid/graph-paper
+     lines (a faint 1px grid used to sit here; it read as a CAD/blueprint overlay, the
+     opposite of the deep-space atmosphere the product is going for). */
   background-image:
-    radial-gradient(ellipse 90% 55% at 15% -10%, rgba(124, 44, 255, 0.2), transparent),
-    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(22, 139, 255, 0.13), transparent),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 157, 28, 0.05), transparent),
-    linear-gradient(rgba(245, 247, 255, 0.006) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(245, 247, 255, 0.006) 1px, transparent 1px);
-  background-size:
-    auto,
-    auto,
-    auto,
-    72px 72px,
-    72px 72px;
+    radial-gradient(ellipse 90% 55% at 15% -10%, rgba(139, 92, 246, 0.16), transparent),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(224, 41, 155, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 176, 32, 0.06), transparent);
   background-attachment: fixed;
 }
 
@@ -76,7 +122,7 @@ h1,
 h2,
 h3 {
   @apply font-display;
-  color: var(--vf-text);
+  color: var(--forge-text);
 }
 
 ::selection {
@@ -105,8 +151,8 @@ button:not(:disabled):active {
 }
 .hover-lift:hover {
   transform: translateY(-3px);
-  border-color: rgba(124, 44, 255, 0.35);
-  box-shadow: 0 12px 40px -20px rgba(124, 44, 255, 0.45);
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 12px 40px -20px rgba(139, 92, 246, 0.5);
 }
 
 /* Glass panel used for primary content surfaces — a translucent, bordered, blurred layer over the
@@ -125,38 +171,6 @@ button:not(:disabled):active {
   color: var(--vf-text);
 }
 
-/* Forged metallic border: a thin gradient hairline evoking cut metal, used sparingly on the
-   single highest-value surface per screen (e.g. the readiness reactor), never on every card. */
-.border-forged {
-  border-image: linear-gradient(120deg, var(--vf-gold-shadow), var(--vf-gold-bright) 45%, var(--vf-gold-shadow)) 1;
-}
-
-/* Button energy sweep: a diagonal light band that travels across the CTA on hover — supports the
-   "activating a system" feeling without being a constant, distracting animation (only runs on
-   hover/focus, not at rest). */
-.btn-energy {
-  position: relative;
-  overflow: hidden;
-  background-size: 200% 100%;
-}
-
-.btn-energy::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(100deg, transparent 30%, rgba(245, 247, 255, 0.35) 45%, transparent 60%);
-  background-size: 250% 100%;
-  background-position: -150% 0;
-  opacity: 0;
-  transition: opacity var(--vf-duration-fast) ease;
-}
-
-.btn-energy:hover::after,
-.btn-energy:focus-visible::after {
-  opacity: 1;
-  animation: sweep 900ms ease;
-}
-
 /* Animated gradient border for the single hero CTA (Home page only, opted into via className —
    never the default MagneticButton look elsewhere). A spinning conic gradient sits behind the
    button and is masked down to a 2px ring using padding + background-clip, so only the border
@@ -172,7 +186,7 @@ button:not(:disabled):active {
   z-index: -1;
   border-radius: inherit;
   padding: 2px;
-  background: linear-gradient(90deg, #7c2cff, #ff9d1c, #168bff, #7c2cff, #ff9d1c);
+  background: linear-gradient(90deg, #ffb020, #ff7a1a, #8b5cf6, #ffb020, #ff7a1a);
   background-size: 300% 100%;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;

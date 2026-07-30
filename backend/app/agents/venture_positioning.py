@@ -18,7 +18,11 @@ already-computed, typed data (the taxonomy's own eligible candidates and scores)
 Deterministic rule set, applied in order:
 
 1. `user_override` always wins outright.
-2. No eligible taxonomy candidates -> fall back to `model_category`, `is_low_confidence=True`.
+2. No eligible taxonomy candidates -> if a Gemini recommendation is available and its confidence
+   clears `GEMINI_AGREEMENT_CONFIDENCE_FLOOR`, use it (`resolution_source=
+   "gemini_recovery_no_taxonomy_match"`) rather than trust a classifier guess that may be barely
+   above chance; otherwise fall back to `model_category`. Either way, `is_low_confidence=True` —
+   there is no local taxonomy evidence either corroborating or contradicting the choice.
 3. A clearly dominant taxonomy candidate (not ambiguous per
    `app.ml.positioning_taxonomy.taxonomy_is_ambiguous`) -> use it unchanged. Gemini is not
    consulted in this branch at all (and, per app.agents.nodes.venture_positioning_node, is not
@@ -109,8 +113,42 @@ def resolve_venture_positioning(
         }
 
     if not candidates:
-        # No taxonomy candidate met the eligibility bar at all — fall back to the raw model
-        # category rather than guess a founder-facing identity, flagged low-confidence.
+        # No taxonomy candidate met the eligibility bar at all. Previously this fell straight back
+        # to the raw model-classifier label even when that label was itself barely above chance
+        # (e.g. a 0.24-confidence guess driven by one spurious keyword) — Gemini's recommendation
+        # was computed upstream (app.agents.nodes.venture_positioning_node calls it whenever the
+        # model category is uncertain) but silently discarded in this branch. Fixed: a
+        # high-confidence Gemini recommendation is real, independent evidence — it reasons over the
+        # whole description, not a bag-of-words vector — so it is used here in preference to a weak
+        # classifier guess. `recommended_primary_domain` is already schema-validated against the
+        # full controlled taxonomy (see GeminiPositioningRecommendation), so there is no "eligible
+        # candidates list" to check it against the way rule 4 does; the confidence floor is the
+        # only gate. If Gemini is unavailable or not confident enough, behavior is unchanged from
+        # before (still flagged low-confidence, still discloses the classifier's own confidence).
+        if gemini_recommendation is not None and gemini_recommendation.confidence >= GEMINI_AGREEMENT_CONFIDENCE_FLOOR:
+            return {
+                "venture_positioning": {
+                    "primary_domain": gemini_recommendation.recommended_primary_domain,
+                    "secondary_domains": gemini_recommendation.recommended_secondary_domains[:2],
+                    "deployment_sectors": sectors,
+                    "confidence": gemini_recommendation.confidence,
+                    "is_low_confidence": True,
+                    "resolution_source": "gemini_recovery_no_taxonomy_match",
+                },
+                "correction_rationale": (
+                    "No taxonomy candidate met the eligibility bar, and the raw classifier "
+                    f"prediction ('{(model_category or {}).get('label', 'unknown')}' at "
+                    f"{(model_category or {}).get('confidence') or 0.0:.2f} confidence) was too "
+                    "weak to trust on its own. Gemini's structured recommendation, reasoning over "
+                    f"the full description, named a taxonomy domain with confidence "
+                    f"{gemini_recommendation.confidence:.2f} (>= {GEMINI_AGREEMENT_CONFIDENCE_FLOOR}) "
+                    "and was used instead of the classifier's guess — still flagged low-confidence "
+                    "since no local taxonomy evidence corroborates it either way."
+                ),
+            }
+
+        # No usable Gemini recovery either — fall back to the raw model category rather than guess
+        # a founder-facing identity, flagged low-confidence.
         fallback_label = (model_category or {}).get("label") or "General Consumer App"
         return {
             "venture_positioning": {

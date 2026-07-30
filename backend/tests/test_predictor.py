@@ -35,7 +35,9 @@ def test_predicts_reasonable_structure():
     assert result["predicted_industry"] in _known_taxonomy()
     assert 0.0 <= result["confidence"] <= 1.0
     assert len(result["alternatives"]) <= 3
-    assert result["model_version"] == "v2"
+    # Final ML Excellence Sprint, Phase 4: model_version is the ONE public-facing production
+    # label ("v1") regardless of which internal artifact folder (MODEL_VERSION) is actually loaded.
+    assert result["model_version"] == "v1"
     assert "is_uncertain" in result and "uncertainty_reasons" in result
 
 

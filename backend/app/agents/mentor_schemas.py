@@ -2,10 +2,11 @@
 
 The single coherent, founder-facing mentor result — replacing a bare collection of agent reports.
 Produced by app.agents.mentor_synthesis.build_deterministic_mentor (always, fully deterministic)
-and optionally refined by app.agents.mentor_reviewer.review_mentor_safely (Gemini narrative-only
-rephrasing, validated and merged on top of the deterministic baseline — see that module for the
-exact safety contract). Every instance, from either source, validates against this exact schema —
-the frontend and every test can rely on one shape regardless of which source produced it.
+and always passed through app.agents.mentor_reviewer.review_mentor_safely, which appends
+`mentor_advice_items` (Gemini-authored, tagged, schema/safety-validated strategic advice — see that
+module) without ever touching any other field here. Every instance validates against this exact
+schema — the frontend and every test can rely on one shape regardless of whether Gemini contributed
+advice or not.
 """
 
 from __future__ import annotations
@@ -78,11 +79,17 @@ class EvidenceAndUncertainty(BaseModel):
 
 class MentorInterpretation(BaseModel):
     mentor_schema_version: str = MENTOR_SCHEMA_VERSION
-    # "deterministic" — fully produced by app.agents.mentor_synthesis, no network call.
-    # "gemini" — the deterministic baseline with a validated subset of narrative fields replaced
-    # by Gemini's rephrasing; every Judge-owned/structural field is still the deterministic value
-    # regardless (see app.agents.mentor_reviewer).
+    # Always "deterministic" — every field below (other than mentor_advice_items) is fully
+    # produced by app.agents.mentor_synthesis with no network dependency. Gemini's contribution,
+    # if any, lives entirely in mentor_advice_items and never changes this value or any other field
+    # (see app.agents.mentor_reviewer).
     source: Literal["deterministic", "gemini"]
+    # Gemini-authored, tagged strategic advice (Product Intelligence Sprint) — see
+    # app.agents.mentor_reviewer.review_mentor_safely and app.ai.schemas.GeminiMentorAdviceItem.
+    # Empty when Gemini is unconfigured/unavailable/every item failed a safety check; every present
+    # item carries its own `domain` and `category` (never "evidence") so a rendering surface can
+    # show what kind of claim it is. Never overwrites or contradicts any other field here.
+    mentor_advice_items: list[dict] = Field(default_factory=list)
 
     idea_understanding: IdeaUnderstanding
     # A short mentor-facing narrative referencing the Judge Agent's already-decided
@@ -105,6 +112,31 @@ class MentorInterpretation(BaseModel):
     business_model: str
     competitor_landscape: str
     revenue_scenarios: str
+    # Product Intelligence Sprint (Phase 3) — see app.agents.pricing_intelligence. Always a complete
+    # dict: a currency (INR/USD/USD-INR when genuinely mixed), a detected-or-assumed target market,
+    # and either a single recommended_price_per_customer (only when confident) or a
+    # recommended_price_range (otherwise) — never both, never neither.
+    pricing_intelligence: dict
+    # Product Intelligence Sprint (Phase 4) — see app.agents.go_to_market_intelligence. Answers who
+    # to approach first, where to find the first ~20 customers, the early-adopter profile, outreach
+    # strategy, distribution channels, sales motion, and validation/expansion roadmaps.
+    go_to_market_intelligence: dict
+    # Product Intelligence Sprint (Phase 5) — see app.agents.feature_intelligence. 8 concrete,
+    # category-flavored differentiation/monetization feature ideas (AI feature, automation,
+    # analytics, integrations, premium tier, enterprise feature, future roadmap, monetization),
+    # each with an explicit reason — never a bare "needs differentiation" statement.
+    feature_intelligence: dict
+    # Product Intelligence Sprint (Phase 6) — see app.agents.competitor_intelligence.
+    # Category-level customer-alternative/switching-behavior/switching-friction/how-to-win
+    # analysis — never a claim about a specific real company's actual product or position.
+    competitor_intelligence: dict
+    # Product Intelligence Sprint (Phase 7) — see app.agents.founder_report. A professional,
+    # investor/founder-quality report composed entirely from the sections above: Executive
+    # Summary, Startup Snapshot, Problem/Customer/Market analysis, Pricing Strategy, GTM Strategy,
+    # Competitive Landscape, Product Roadmap, AI Feature Suggestions, Risk/Opportunity Assessment,
+    # Funding Readiness, 90-Day Action Plan, and Final Mentor Verdict — every item explicitly
+    # tagged evidence/inference/ai_recommendation/market_assumption/experiment_suggestion.
+    founder_report: dict
     mvp_recommendation: MvpRecommendation
     validation_plan: list[ValidationAction] = Field(default_factory=list)
     roadmap_30_60_90: list[RoadmapPeriod] = Field(default_factory=list)

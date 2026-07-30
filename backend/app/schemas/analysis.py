@@ -11,6 +11,10 @@ class AnalysisResponse(BaseModel):
     id: uuid.UUID
     startup_id: uuid.UUID
     status: str
+    # Act IV (The Forging) live-progress fields — see app.models.analysis.Analysis. Both null
+    # until the first real node of a run has completed.
+    current_node: str | None = None
+    current_stage: str | None = None
     industry_model_version: str | None
     industry_prediction: dict[str, Any] | None
     funding_rubric_version: str | None
@@ -115,3 +119,16 @@ class ModelStatusResponse(BaseModel):
     success_predictor_version: str | None
     success_predictor_trained_at: str | None
     revenue_engine_version: str
+    # Product Intelligence Sprint (Phase 9 — ML Evaluation): these already existed as real,
+    # held-out test-set metrics computed at training time (see ml/src/training/*.py and
+    # ml/DATASETS.md) and saved into each artifact's metadata.json — they were simply never
+    # surfaced anywhere outside that file on disk. Purely additive: no retraining, no new numbers,
+    # just exposing what was already genuinely measured. `None` for any field means that artifact's
+    # metadata predates the field or the artifact isn't loaded — never a fabricated substitute.
+    industry_classifier_test_metrics: dict | None = None
+    industry_classifier_cv_results: dict | None = None
+    industry_classifier_model_card: dict | str | None = None
+    success_predictor_test_metrics: dict | None = None
+    success_predictor_cv_results: dict | None = None
+    success_predictor_model_card: dict | str | None = None
+    success_predictor_disclaimer: str | None = None

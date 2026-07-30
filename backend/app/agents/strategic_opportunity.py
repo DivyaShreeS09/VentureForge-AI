@@ -26,11 +26,12 @@ support fields (potential_revenue, difficulty, time_to_market, validation_effort
 
 from __future__ import annotations
 
-STRATEGIC_OPPORTUNITY_VERSION = "v1"
+from app.agents.confidence_tier import CONFIRMED as _CONFIRMED
+from app.agents.confidence_tier import HYPOTHESIS as _HYPOTHESIS
+from app.agents.confidence_tier import SPECULATIVE as _SPECULATIVE
+from app.agents.regulatory_context import classify_regulatory_context
 
-_CONFIRMED = "confirmed_from_evidence"
-_HYPOTHESIS = "reasonable_hypothesis"
-_SPECULATIVE = "speculative_future_opportunity"
+STRATEGIC_OPPORTUNITY_VERSION = "v1"
 
 # Curated, versioned adjacent-market reasoning per controlled taxonomy primary_domain — mirrors the
 # hand-curated, never-invented-per-input approach already used by app.ml.capability_library. Each
@@ -173,14 +174,11 @@ def _future_expansion_items(primary_domain: str | None, deployment_sectors: list
 
 _RISK_CATEGORIES = ("market", "timing", "regulatory", "technology", "competition", "adoption")
 
-# Domains where a regulatory pathway is a real, well-known consideration (mirrors
-# app.ml.capability_library's health capability set, which already models this via
-# `regulatory_documentation`/`autonomous_diagnosis` prerequisites).
-_REGULATED_DOMAINS = frozenset({"Clinical Decision Support", "Remote Patient Monitoring", "HealthTech Diagnostics"})
-
 
 def _strategic_risks(
+    startup_description: str,
     primary_domain: str | None,
+    deployment_sectors: list[str],
     competitor_analysis: dict | None,
     feature_gap: dict,
     founder_guidance_items: list[dict],
@@ -189,9 +187,9 @@ def _strategic_risks(
 
     # Market risk — always applicable, generically framed, never claims confirmed evidence.
     risks.append({
-        "risk": "Market may be narrower than assumed",
+        "risk": "This market could turn out smaller than it looks",
         "category": "market",
-        "why": f"If adoption for {primary_domain or 'this idea'} stays niche, the addressable market may be smaller than the current positioning assumes.",
+        "why": f"If {primary_domain or 'this'} adoption stays niche, the real addressable market may be smaller than the current positioning assumes.",
         "likelihood": "medium",
         "impact": "medium",
         "mitigation": "Validate demand in a second and third sub-segment before assuming market-wide demand.",
@@ -201,36 +199,42 @@ def _strategic_risks(
 
     # Timing risk — generic budget-cycle framing.
     risks.append({
-        "risk": "Mistimed buyer budget cycle",
+        "risk": "You could hit the buyer at the wrong point in their budget cycle",
         "category": "timing",
-        "why": "If the buyer's budget cycle for this category runs annually, a mistimed pitch can stall adoption by a full cycle.",
+        "why": "If your buyer's budget for this category runs annually, a mistimed pitch can stall adoption by a full year.",
         "likelihood": "medium",
         "impact": "medium",
-        "mitigation": "Learn the target buyer's budgeting calendar during discovery and time outreach accordingly.",
+        "mitigation": "Learn your target buyer's budgeting calendar during discovery and time outreach around it.",
         "confidence_tier": _HYPOTHESIS,
         "source": "deterministic",
     })
 
-    # Regulatory risk — only elevated for known-regulated domains; otherwise flagged low/generic.
-    if primary_domain in _REGULATED_DOMAINS:
+    # Regulatory / responsible-use risk — Critical Fix #1 (context-aware mentor judgment): a single
+    # deterministic classifier covers healthcare, insurance, finance, legal, minors/consent,
+    # surveillance/privacy, safety-critical, and dual-use ventures (see
+    # app.agents.regulatory_context), not just the 3 health taxonomy domains this used to hardcode.
+    # `mentor_synthesis._build_mentor_verdict` runs the identical classifier so the Risk scene's
+    # headline (`biggest_risk`) and this supporting detail never contradict each other.
+    reg_context = classify_regulatory_context(startup_description, primary_domain, deployment_sectors)
+    if reg_context:
         risks.append({
-            "risk": "Regulatory pathway not yet confirmed",
+            "risk": reg_context["headline"],
             "category": "regulatory",
-            "why": f"{primary_domain} ventures typically require a defined regulatory pathway before broader deployment.",
-            "likelihood": "high",
-            "impact": "high",
-            "mitigation": "Consult on the applicable regulatory pathway before scaling beyond a clinician-reviewed pilot.",
+            "why": reg_context["note"],
+            "likelihood": reg_context["likelihood"],
+            "impact": reg_context["impact"],
+            "mitigation": reg_context["mitigation"],
             "confidence_tier": _CONFIRMED,
             "source": "deterministic",
         })
     else:
         risks.append({
-            "risk": "No material regulatory exposure identified yet",
+            "risk": "Regulation isn't a real concern for you right now",
             "category": "regulatory",
-            "why": "No regulatory pathway is currently required for this domain, but this can change if the venture expands into a regulated sector.",
+            "why": "Nothing in this space currently requires a regulatory pathway, though that could change if you expand into a regulated sector later.",
             "likelihood": "low",
             "impact": "low",
-            "mitigation": "Revisit if entering a new, regulated deployment sector (e.g. healthcare, finance, government).",
+            "mitigation": "Revisit this if you ever move into a regulated sector — healthcare, finance, or government, for example.",
             "confidence_tier": _HYPOTHESIS,
             "source": "deterministic",
         })
@@ -240,12 +244,12 @@ def _strategic_risks(
     if premature:
         labels = ", ".join(c["label"] for c in premature[:3])
         risks.append({
-            "risk": "Advanced capabilities depend on unbuilt infrastructure",
+            "risk": "Some of your bigger plans depend on things you haven't built yet",
             "category": "technology",
-            "why": f"{labels} depend on prerequisites not yet built — a roadmap that assumes them too early carries technical risk.",
+            "why": f"{labels} all depend on groundwork that isn't built yet — planning around them too early is where technical risk creeps in.",
             "likelihood": "medium",
             "impact": "medium",
-            "mitigation": "Sequence the roadmap so each capability's prerequisites are proven before building it.",
+            "mitigation": "Sequence your roadmap so each of these has its prerequisite proven before you build it.",
             "confidence_tier": _CONFIRMED,
             "source": "deterministic",
         })
@@ -255,23 +259,23 @@ def _strategic_risks(
     if verified:
         names = ", ".join(c["name"] for c in verified[:3])
         risks.append({
-            "risk": "Named alternatives already exist",
+            "risk": "Real alternatives already exist",
             "category": "competition",
-            "why": f"The founder already named real alternatives ({names}) — differentiation must be concrete, not assumed.",
+            "why": f"You've already named real alternatives ({names}) — your differentiation needs to be concrete, not assumed.",
             "likelihood": "high",
             "impact": "medium",
-            "mitigation": "Confirm a specific, defensible differentiation against each named alternative before scaling spend.",
+            "mitigation": "Nail down a specific, defensible differentiation against each one before you scale spend.",
             "confidence_tier": _CONFIRMED,
             "source": "deterministic",
         })
     else:
         risks.append({
-            "risk": "Category-level alternatives remain the real competition",
+            "risk": "\"Doing nothing\" is still your real competition",
             "category": "competition",
-            "why": "No verified named competitor yet, but manual processes and 'doing nothing' are still real alternatives a buyer will compare against.",
+            "why": "You haven't named a competitor yet, but manual workarounds and simply doing nothing are still real alternatives a buyer will weigh against you.",
             "likelihood": "medium",
             "impact": "medium",
-            "mitigation": "Validate willingness to switch away from the manual/status-quo alternative, not just interest in the product.",
+            "mitigation": "Validate that people will actually switch away from what they do today — not just that they find your product interesting.",
             "confidence_tier": _HYPOTHESIS,
             "source": "deterministic",
         })
@@ -283,9 +287,9 @@ def _strategic_risks(
     )
     if adoption_gap:
         risks.append({
-            "risk": "Adoption not yet confirmed",
+            "risk": "Adoption itself isn't confirmed yet",
             "category": "adoption",
-            "why": f"{adoption_gap['title']} — until a real pilot validates demand, adoption risk remains open.",
+            "why": f"{adoption_gap['title']} Until a real pilot validates demand, this stays an open risk rather than a settled one.",
             "likelihood": "medium",
             "impact": "high",
             "mitigation": adoption_gap["next_step"],
@@ -310,29 +314,29 @@ def _build_primary_opportunity(
 
     demand = (
         (market_intelligence or {}).get("market_summary")
-        or "Not yet established — no market intelligence evidence submitted."
+        or "You haven't given me market evidence yet, so I can't say how much real demand exists."
     )
     personas = (customer_personas or {}).get("personas") or []
-    buyer = personas[0]["role_or_context"] if personas else "Not yet named by the founder."
+    buyer = personas[0]["role_or_context"] if personas else "You haven't named a specific buyer yet."
 
     traction_item = next((i for i in founder_guidance_items if i["dimension"] == "traction"), None)
     urgency = (
-        "Demonstrated — traction evidence already confirmed."
+        "You've already shown real traction, which is the strongest urgency signal there is."
         if traction_item and traction_item["category"] == "strength"
-        else "Not yet confirmed — no traction evidence submitted."
+        else "There's no traction evidence yet to say how urgently buyers want this."
     )
 
     revenue_streams = (business_model or {}).get("revenue_streams")
     willingness_to_pay = (
         revenue_streams if revenue_streams and "unknown" not in revenue_streams.lower()
-        else "Not yet confirmed — no revenue-model evidence submitted."
+        else "You haven't shown evidence yet that anyone will actually pay for this."
     )
 
     verified_competitors = (competitor_analysis or {}).get("verified_competitors") or []
     competition = (
-        f"Named alternatives exist: {', '.join(c['name'] for c in verified_competitors[:3])}."
+        f"You've already named real alternatives: {', '.join(c['name'] for c in verified_competitors[:3])}."
         if verified_competitors
-        else "No verified named competitor yet — category-level alternatives only."
+        else "No verified competitor yet — right now you're really only up against people doing this the old way."
     )
 
     premature_count = len(feature_gap.get("premature_capabilities", []))
@@ -363,16 +367,16 @@ def _build_primary_opportunity(
     return {
         "opportunity": primary_domain,
         "reason": (
-            f"{primary_domain} is the strongest current positioning because it is where this venture's "
-            "own evidence — market signal, named buyer, and capability fit — already concentrates."
+            f"{primary_domain} is where I'd focus right now — it's the one place your own evidence, "
+            "your named buyer, and what you've actually built all point the same direction."
         ),
         "evidence": (
-            f"Demand: {demand} Buyer: {buyer} Urgency: {urgency} Willingness to pay: {willingness_to_pay} "
-            f"Competition: {competition}"
+            f"On demand: {demand} On your buyer: {buyer} On urgency: {urgency} On willingness to pay: "
+            f"{willingness_to_pay} On competition: {competition}"
         ),
         "confidence_tier": confidence_tier,
         "recommended_next_step": recommended_next_step,
-        "potential_revenue": "Not yet quantified — see Revenue Estimate for scenario ranges." if not revenue_streams else revenue_streams,
+        "potential_revenue": "Not yet quantified — see the revenue scenarios below for a real range." if not revenue_streams else revenue_streams,
         "difficulty": implementation_difficulty,
         "time_to_market": {"low": "1-3 months", "medium": "3-6 months", "high": "6-12+ months"}[implementation_difficulty],
         "validation_effort": "One concrete pilot commitment" if suitable_stage in ("idea", "prototype") else "Ongoing measurement across existing pilots",
@@ -394,10 +398,10 @@ def _adjacent_opportunity_items(primary_domain: str | None) -> list[dict]:
         items.append({
             "opportunity": market,
             "reason": reason,
-            "evidence": f"Derived from this venture's own positioning ({primary_domain}) and its known shared-workflow reasoning.",
+            "evidence": f"This follows directly from what you're already positioned as ({primary_domain}) — the workflow transfers, even though no one in {market} has confirmed it yet.",
             "confidence_tier": _HYPOTHESIS,
             "recommended_next_step": f"Interview one potential buyer in {market} to confirm the shared problem actually holds.",
-            "potential_revenue": "Not yet quantified — a new segment requires its own validation before estimating revenue.",
+            "potential_revenue": "Not yet quantified — worth its own validation before you estimate revenue here.",
             "difficulty": "medium",
             "time_to_market": "3-6 months",
             "validation_effort": "1-2 discovery interviews in the adjacent segment",
@@ -416,6 +420,7 @@ def build_deterministic_strategic_opportunity(
     feature_gap: dict,
     founder_guidance_items: list[dict],
     funding_assessment: dict,
+    startup_description: str = "",
 ) -> dict:
     """Build the complete, always-available Strategic Opportunity Discovery baseline. Fully
     deterministic, no network call. Never changes venture_positioning, funding_assessment,
@@ -436,5 +441,7 @@ def build_deterministic_strategic_opportunity(
         ),
         "adjacent_opportunities": _adjacent_opportunity_items(primary_domain),
         "future_expansion": _future_expansion_items(primary_domain, deployment_sectors, present_capability_labels),
-        "strategic_risks": _strategic_risks(primary_domain, competitor_analysis, feature_gap, founder_guidance_items),
+        "strategic_risks": _strategic_risks(
+            startup_description, primary_domain, deployment_sectors, competitor_analysis, feature_gap, founder_guidance_items
+        ),
     }

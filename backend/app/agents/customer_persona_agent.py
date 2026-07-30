@@ -26,7 +26,7 @@ def generate_customer_persona(
         role_or_context = customer_type
         field_provenance["role_or_context"] = "evidence-backed (user-submitted customer_type)"
     elif industry_label:
-        role_or_context = f"a professional or buyer within the '{industry_label}' industry"
+        role_or_context = f"a professional or buyer in the {industry_label.replace('_', ' ')} space"
         field_provenance["role_or_context"] = "inference (derived from industry classifier output)"
     else:
         role_or_context = "unknown"

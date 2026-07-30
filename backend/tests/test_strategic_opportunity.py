@@ -131,6 +131,14 @@ def test_regulatory_risk_is_low_for_non_health_domains():
     assert regulatory["likelihood"] == "low"
 
 
+def test_regulatory_risk_elevated_from_description_keywords_not_just_taxonomy_domain():
+    result = _build(startup_description="We underwrite pet insurance policies sold directly to consumers.")
+    regulatory = next(r for r in result["strategic_risks"] if r["category"] == "regulatory")
+    assert regulatory["confidence_tier"] == "confirmed_from_evidence"
+    assert regulatory["likelihood"] == "high"
+    assert "regulated industry" in regulatory["risk"].lower()
+
+
 def test_technology_risk_present_when_premature_capabilities_exist():
     result = _build()
     tech_risks = [r for r in result["strategic_risks"] if r["category"] == "technology"]

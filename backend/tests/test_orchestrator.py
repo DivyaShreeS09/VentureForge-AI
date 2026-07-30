@@ -43,9 +43,54 @@ def test_valid_input_completes_successfully():
         "mentor_synthesis",
         "idea_expansion",
         "strategic_opportunity",
+        "decision_synthesis",
+        "causal_reasoning",
+        "counterfactual_simulation",
         "persistence",
         "final_response",
     ]
+
+
+def test_decision_synthesis_present_in_judge_summary_end_to_end():
+    result = run_pipeline(
+        "PayFlux",
+        "A payments platform that lets small businesses settle cross-border payments in seconds.",
+        {"problem_clarity": 2, "traction": 1},
+    )
+    assert result["status"] == "COMPLETED"
+    decision_synthesis = result["judge_summary"]["decision_synthesis"]
+    assert decision_synthesis["decision_synthesis_version"] == "v1"
+    assert decision_synthesis["overall_decision"]
+    assert decision_synthesis["decision_confidence_label"] in ("low", "medium", "high")
+    # Everything else judge.synthesize already returns must remain untouched by this new key.
+    assert "evidence_ledger" in result["judge_summary"]
+    assert "contradiction_set" in result["judge_summary"]
+
+
+def test_causal_reasoning_present_in_judge_summary_end_to_end():
+    result = run_pipeline(
+        "PayFlux",
+        "A payments platform that lets small businesses settle cross-border payments in seconds.",
+        {"problem_clarity": 2, "traction": 1},
+    )
+    assert result["status"] == "COMPLETED"
+    causal_reasoning = result["judge_summary"]["causal_reasoning"]
+    assert causal_reasoning["causal_reasoning_version"] == "v1"
+    assert causal_reasoning["primary_chain"] is not None
+    assert "decision_synthesis" in result["judge_summary"]
+
+
+def test_counterfactual_simulation_present_in_judge_summary_end_to_end():
+    result = run_pipeline(
+        "PayFlux",
+        "A payments platform that lets small businesses settle cross-border payments in seconds.",
+        {"problem_clarity": 2, "traction": 1},
+    )
+    assert result["status"] == "COMPLETED"
+    counterfactual_simulation = result["judge_summary"]["counterfactual_simulation"]
+    assert counterfactual_simulation["counterfactual_simulation_version"] == "v1"
+    assert counterfactual_simulation["baseline"] is not None
+    assert counterfactual_simulation["scenarios"]
 
 
 def test_invalid_input_short_circuits_before_ml_nodes():

@@ -19,6 +19,15 @@ class Analysis(Base):
     startup_id: Mapped[uuid.UUID] = mapped_column(UUIDType, ForeignKey("startups.id", ondelete="CASCADE"))
     status: Mapped[str] = mapped_column(Text, nullable=False, default="PENDING")
 
+    # Act IV (The Forging) live-progress fields — written incrementally by the background
+    # analysis thread after every real orchestrator node completes (see
+    # app.services.analysis_service._execute_analysis_stream), not just once at the end. Both
+    # null until the first node of a run has completed; both stay at their last real value once
+    # status reaches COMPLETED/FAILED (never cleared, so a late page load still shows where the
+    # run finished). `current_stage` is `app.agents.stage_labels.stage_label_for(current_node)`.
+    current_node: Mapped[str | None] = mapped_column(Text, nullable=True)
+    current_stage: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     industry_model_version: Mapped[str | None] = mapped_column(Text, nullable=True)
     industry_prediction: Mapped[dict | None] = mapped_column(JSONVariant, nullable=True)
 

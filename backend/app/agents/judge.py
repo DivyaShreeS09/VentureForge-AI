@@ -14,8 +14,16 @@ identical whether or not an LLM is configured.
 
 from __future__ import annotations
 
+from app.agents.alternative_explanation_engine import build_alternative_explanation_set
+from app.agents.confidence_engine import label_confidence
+from app.agents.contradiction_engine import build_contradiction_set
+from app.agents.evidence_ledger import build_evidence_ledger, summarize_ledger
 from app.agents.founder_guidance import build_founder_guidance_items
 from app.agents.hypothesis_engine import build_hypotheses_for_gaps
+from app.agents.hypothesis_set import build_hypothesis_set
+from app.agents.judge_voice import build_overall_assessment
+from app.agents.venture_frame import build_venture_frame
+from app.agents.venture_vocabulary import vocab_for
 
 _ACTION_BY_DIMENSION: dict[str, str] = {
     "problem_clarity": "Write a one-sentence problem statement naming who has the problem and what it costs them.",
@@ -29,11 +37,20 @@ _ACTION_BY_DIMENSION: dict[str, str] = {
 }
 
 
-def _confidence_level(industry_prediction: dict | None, funding_assessment: dict, evidence_check: dict) -> str:
+def _confidence_level(funding_assessment: dict, evidence_check: dict, evidence_ledger_summary: dict) -> str:
+    """VentureForge Intelligence Architecture, Phase D: this used to compare the raw industry-
+    classifier confidence against an undocumented 0.6 threshold in isolation. It now reads the same
+    threshold via `app.agents.confidence_engine.label_confidence` (the one shared confidence
+    engine), applied to `evidence_ledger_summary["overall_confidence"]` — a number that already
+    combines the industry prediction *and* every rubric/market-evidence item, rather than the
+    industry prediction alone. The `evidence_check.low_confidence` early-exit and the requirement
+    that funding readiness also be at the "ready" level before "high" is granted are both preserved
+    unchanged from the pre-Phase-D behavior.
+    """
     if evidence_check.get("low_confidence"):
         return "low"
-    industry_confidence = (industry_prediction or {}).get("confidence", 0.0)
-    if funding_assessment.get("level") == "ready" and industry_confidence >= 0.6:
+    overall_confidence = evidence_ledger_summary.get("overall_confidence", 0.0)
+    if funding_assessment.get("level") == "ready" and label_confidence(overall_confidence) == "high":
         return "high"
     return "medium"
 
@@ -58,6 +75,8 @@ def synthesize(
     customer_segment: dict | None = None,
     ranked_actions: list[dict] | None = None,
     risks: list[dict] | None = None,
+    startup_name: str = "",
+    startup_description: str = "",
 ) -> dict:
     """Produce the final Judge summary. Raises ValueError if required fields are missing.
 
@@ -113,10 +132,65 @@ def synthesize(
         for item in breakdown
         if _state(item) in ("confirmed_negative", "not_sure_yet") and item["dimension"] in _ACTION_BY_DIMENSION
     ]
-    suggested_possibilities = build_hypotheses_for_gaps(sorted(missing))
-    founder_guidance_items = build_founder_guidance_items(funding_assessment, market_evidence)
+    # Critical Fix #2/#5 (Product Intelligence Refinement Sprint): a small, category-keyed
+    # vocabulary — never a new classifier, just the same primary_domain/model_category signals
+    # already resolved upstream — so two ventures with an identical evidence profile (e.g. two
+    # zero-evidence one-liners) still get recommendations flavored for their own category
+    # (a "clinical pilot" vs. a "field trial" vs. a "design-partner pilot") instead of byte-identical
+    # generic text. See app.agents.venture_vocabulary.
+    vocab = vocab_for(
+        (venture_positioning or {}).get("primary_domain"),
+        (model_category or {}).get("label"),
+        (venture_positioning or {}).get("deployment_sectors"),
+    )
+    suggested_possibilities = build_hypotheses_for_gaps(sorted(missing), vocab)
+    founder_guidance_items = build_founder_guidance_items(funding_assessment, market_evidence, vocab)
 
-    confidence_level = _confidence_level(industry_prediction, funding_assessment, evidence_check)
+    # Evidence Ledger (VentureForge Intelligence Architecture, Phase A) — a new, additive lens over
+    # the same inputs this function already reconciles; built here, before `confidence_level`, so
+    # Phase D can derive that existing field from this one shared confidence engine instead of its
+    # own former ad hoc rule (see `_confidence_level`'s docstring for exactly what changed and what
+    # didn't). It exists so every later phase (Hypothesis Set, Contradiction Detection, Decision
+    # Synthesis) has one shared, auditable evidence structure to build on too.
+    evidence_ledger = build_evidence_ledger(funding_assessment, market_evidence, industry_prediction)
+    evidence_ledger_summary = summarize_ledger(evidence_ledger)
+
+    confidence_level = _confidence_level(funding_assessment, evidence_check, evidence_ledger_summary)
+
+    # Structured Venture Frame (VentureForge Intelligence Architecture, Phase B) — a new, additive
+    # canonical understanding of the venture assembled from the same inputs this function already
+    # reconciles. Does not change any field above or below; see app.agents.venture_frame for the
+    # full audit of what it reuses versus what it adds.
+    venture_frame = build_venture_frame(
+        startup_name=startup_name,
+        startup_description=startup_description,
+        funding_assessment=funding_assessment,
+        industry_prediction=industry_prediction,
+        venture_positioning=venture_positioning,
+        market_evidence=market_evidence,
+        business_model=business_model,
+        competitor_analysis=competitor_analysis,
+    )
+
+    # Hypothesis Set (VentureForge Intelligence Architecture, Phase C) — competing interpretations
+    # built only from the Venture Frame + Evidence Ledger above; see app.agents.hypothesis_set for
+    # what it does and does not build, and why. Additive: does not change any field above or below.
+    hypothesis_set = build_hypothesis_set(venture_frame, evidence_ledger, funding_assessment)
+
+    # Global Contradiction Detection (VentureForge Intelligence Architecture, Phase E) — a new,
+    # additive reasoning layer over the Evidence Ledger + Venture Frame + Hypothesis Set above; see
+    # app.agents.contradiction_engine for the full audit of what it reuses, what it does and does
+    # not detect, and why. Additive: does not change any field above or below.
+    contradiction_set = build_contradiction_set(evidence_ledger, venture_frame, hypothesis_set)
+
+    # Alternative Explanation Engine (VentureForge Intelligence Architecture, Phase F) — broadens
+    # the search space for every leading conclusion the Contradiction Engine already flagged as
+    # genuinely open, plus the one stage-gated traction reading; see
+    # app.agents.alternative_explanation_engine for the full audit of what it reuses and what it does
+    # not attempt. Additive: does not change any field above or below, and makes no decision itself.
+    alternative_explanation_set = build_alternative_explanation_set(
+        evidence_ledger, venture_frame, hypothesis_set, contradiction_set
+    )
 
     source_attribution: dict[str, str] = {
         "funding_assessment": "deterministic rubric score from user-provided answers",
@@ -176,27 +250,27 @@ def synthesize(
         )
 
     if industry_prediction is not None:
-        industry_clause = (
-            f"classified as '{industry_prediction['predicted_industry']}' "
-            f"(model confidence {industry_prediction['confidence']:.0%})"
-        )
-        if industry_prediction.get("is_uncertain"):
-            industry_clause += " — flagged uncertain, do not treat as a confident fact"
         industry_model_description = (
             f"ML model prediction ({industry_prediction.get('model_pipeline', 'unknown pipeline')}, "
             f"version {industry_prediction.get('model_version', 'unknown')})"
         )
     else:
-        industry_clause = "not classified — the industry model was unavailable for this run"
         industry_model_description = "unavailable for this run"
     source_attribution["industry_prediction"] = industry_model_description
 
-    readiness_level = funding_assessment["level"].replace("_", " ")
-    overall_assessment = (
-        f"This startup was {industry_clause} and rated '{readiness_level}' for funding "
-        f"readiness ({funding_assessment['overall_score']}/100 on the {funding_assessment['rubric_version']} "
-        f"rubric). " + " ".join(evidence_check.get("notes", []))
-    ).strip()
+    # Founder-facing summary sentence — see app.agents.judge_voice for the full rationale on why
+    # this is composed separately from the raw classification/rubric data above (never a quoted
+    # model label, never a "X/100 on the vN rubric" readout, never the evidence_check node's raw
+    # technical notes). Narrates from the Judge's own resolved `venture_positioning` (never the raw
+    # `industry_prediction` alone) so a weak classifier guess can never dominate this sentence when
+    # the positioning resolution has already recovered to something better-reasoned.
+    overall_assessment = build_overall_assessment(
+        industry_prediction,
+        funding_assessment,
+        evidence_check,
+        venture_positioning=venture_positioning,
+        model_category=model_category,
+    )
 
     return {
         "overall_assessment": overall_assessment,
@@ -208,6 +282,14 @@ def synthesize(
         "source_attribution": source_attribution,
         "suggested_possibilities": suggested_possibilities,
         "founder_guidance_items": founder_guidance_items,
+        # See app.agents.evidence_ledger — additive, does not affect confidence_level above or any
+        # other existing field.
+        "evidence_ledger": evidence_ledger,
+        "evidence_ledger_summary": evidence_ledger_summary,
+        "venture_frame": venture_frame,
+        "hypothesis_set": hypothesis_set,
+        "contradiction_set": contradiction_set,
+        "alternative_explanation_set": alternative_explanation_set,
         # Two distinct category outputs (see app.agents.venture_positioning): `model_category` is
         # the untouched trained-model output, relabeled as technical evidence; `venture_positioning`
         # is the founder-facing identity the Judge Agent's deterministic rule set already decided

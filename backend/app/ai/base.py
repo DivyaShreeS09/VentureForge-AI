@@ -13,7 +13,7 @@ from app.ai.schemas import (
     CompetitorPossibilitiesContext,
     GeminiCompetitorPossibilities,
     GeminiIdeaExpansion,
-    GeminiMentorInterpretation,
+    GeminiMentorAdvice,
     GeminiPositioningRecommendation,
     GeminiStrategicOpportunity,
     IdeaExpansionContext,
@@ -49,11 +49,13 @@ class LLMProvider(Protocol):
         LLMUnavailable. Never a named company — see app.agents.competitor_agent."""
         ...
 
-    def generate_mentor_interpretation(self, context: MentorContext) -> GeminiMentorInterpretation:
-        """Return a validated, narrative-only mentor rephrasing, or raise LLMUnavailable. Purely
-        advisory — see app.agents.mentor_reviewer, which merges only a narrow, safety-checked
-        subset of this onto the deterministic mentor baseline; every Judge-owned/structural field
-        always comes from that baseline regardless of this response."""
+    def generate_mentor_advice(self, context: MentorContext) -> GeminiMentorAdvice:
+        """Return a validated, schema-bounded list of tagged mentor advice (Product Intelligence
+        Sprint: enrichment, not rephrasing), or raise LLMUnavailable. Purely additive and advisory
+        — see app.agents.mentor_reviewer.enrich_mentor_safely, which appends only safety-checked
+        items onto the deterministic mentor baseline; every existing baseline field (positioning,
+        verdict, roadmap, idea understanding, etc.) is always the deterministic value regardless of
+        this response."""
         ...
 
     def generate_idea_expansion(self, context: IdeaExpansionContext) -> GeminiIdeaExpansion:

@@ -202,7 +202,7 @@ def assess_funding_readiness(answers: dict[str, object]) -> dict:
         "breakdown": breakdown,
         "missing_evidence": missing_evidence,
         "disclaimer": (
-            "This is a deterministic readiness assessment based on a hand-designed rubric, not a "
-            "trained probability model and not investment advice."
+            "This read comes from a consistent set of questions I ask every founder — not a "
+            "trained prediction, and not investment advice."
         ),
     }

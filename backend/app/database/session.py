@@ -25,3 +25,13 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def get_session_factory() -> sessionmaker:
+    """A FastAPI dependency (not a plain import) so a background thread outside the request
+    lifecycle (see `analysis_service._execute_analysis_stream`) can create its own independent
+    `Session` bound to the *same* engine the current request is using — production code gets the
+    real `SessionLocal`; the test suite overrides this exactly like `get_db`, pointing it at the
+    same ephemeral per-test in-memory engine, so a background thread's session sees the same
+    database the test's own session does."""
+    return SessionLocal

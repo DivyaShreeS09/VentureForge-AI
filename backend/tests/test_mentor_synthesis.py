@@ -56,6 +56,24 @@ def test_idea_understanding_uses_submitted_fields():
     assert "Restaurant Operations Technology" in result["idea_understanding"]["business_context"]
 
 
+def test_notices_a_real_customer_contradiction():
+    """Sprint 8: the mentor should politely flag it when the founder's own submitted fields name
+    two different target customers — but never over a mere word-form difference."""
+    result = _build(market_evidence={"customer_type": "Universities"})
+    assert "noticing two slightly different customers" in result["idea_understanding"]["business_context"]
+    assert "Universities" in result["idea_understanding"]["business_context"]
+
+
+def test_no_false_positive_contradiction_for_matching_customer():
+    result = _build(market_evidence={"customer_type": "restaurant owners"})
+    assert "noticing two slightly different customers" not in result["idea_understanding"]["business_context"]
+
+
+def test_no_contradiction_check_when_customer_type_is_absent():
+    result = _build(market_evidence={})
+    assert "noticing two slightly different customers" not in result["idea_understanding"]["business_context"]
+
+
 def test_confirmed_strengths_carry_through_unchanged():
     result = _build()
     assert result["strengths"] == ["Problem Clarity: Specific, well-defined problem"]
@@ -159,6 +177,57 @@ def test_evidence_and_uncertainty_includes_all_required_caveats():
     assert isinstance(evidence["low_confidence_flags"], list)
     assert evidence["user_supplied_vs_suggested_summary"]
     assert evidence["unresolved_questions"] == ["Market Size Evidence", "Revenue Model Clarity"]
+
+
+def test_business_context_never_has_an_a_an_grammar_bug():
+    low_confidence_judge = {
+        **_JUDGE_SUMMARY,
+        "venture_positioning": {**_JUDGE_SUMMARY["venture_positioning"], "primary_domain": "Enterprise AI", "deployment_sectors": []},
+    }
+    result = _build(judge_summary=low_confidence_judge)
+    assert "as an Enterprise AI play" in result["idea_understanding"]["business_context"]
+    assert "as a Enterprise AI play" not in result["idea_understanding"]["business_context"]
+
+
+def test_regulated_industry_description_overrides_biggest_risk():
+    result = _build(
+        startup_name="PawPatrol",
+        startup_description="We underwrite pet insurance policies directly to consumers nationwide.",
+    )
+    assert "regulated industry" in result["mentor_verdict"]["biggest_risk"].lower()
+
+
+_STRONG_FUNDING_ASSESSMENT = {
+    "rubric_version": "v1",
+    "overall_score": 100.0,
+    "level": "ready",
+    "breakdown": [
+        {"dimension": dim, "label": dim.replace("_", " ").title(), "state": "confirmed_positive", "raw_score": 2, "max_score": 2, "weight": 0.125, "weighted_contribution": 12.5, "scale_description": "Strong"}
+        for dim in (
+            "problem_clarity", "customer_pain_evidence", "market_size_evidence", "product_maturity",
+            "traction", "revenue_model_clarity", "team_completeness", "competitive_differentiation",
+        )
+    ],
+    "missing_evidence": [],
+    "disclaimer": "deterministic rubric",
+}
+
+
+def test_top_next_actions_stay_substantive_even_when_no_open_gaps_remain():
+    strong_judge = {**_JUDGE_SUMMARY, "founder_guidance_items": build_founder_guidance_items(_STRONG_FUNDING_ASSESSMENT)}
+    result = _build(judge_summary=strong_judge, funding_assessment=_STRONG_FUNDING_ASSESSMENT)
+    assert all(item["category"] == "strength" for item in strong_judge["founder_guidance_items"])
+    assert len(result["top_next_actions"]) >= 3
+
+
+def test_roadmap_focus_does_not_say_discovery_for_a_ready_venture():
+    strong_judge = {
+        **_JUDGE_SUMMARY,
+        "founder_guidance_items": build_founder_guidance_items(_STRONG_FUNDING_ASSESSMENT),
+        "venture_positioning": {**_JUDGE_SUMMARY["venture_positioning"], "is_low_confidence": False},
+    }
+    result = _build(judge_summary=strong_judge, funding_assessment=_STRONG_FUNDING_ASSESSMENT)
+    assert "discovery" not in result["roadmap_30_60_90"][0]["focus"].lower()
 
 
 def test_no_field_disappears_when_optional_agent_outputs_are_missing():

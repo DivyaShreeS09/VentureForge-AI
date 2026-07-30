@@ -29,7 +29,16 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 MODEL_NAME = "industry_classifier"
-MODEL_VERSION = "v2"
+# Internal artifact folder actually loaded from disk (ml/models/industry_classifier/<MODEL_VERSION>)
+# -- this product has never shipped, so there is nothing for "v3" to be a version bump FROM. Kept
+# as-is purely so the training/experiment history (v1/v2/v3 artifacts, each a real, superseded
+# benchmark step -- see ml/DATASETS.md) stays on disk for engineering rollback; never surfaced
+# past this module. See PUBLIC_MODEL_VERSION below for what callers/API/frontend actually see.
+MODEL_VERSION = "v3"
+# Final ML Excellence Sprint, Phase 4 (Version Cleanup): the ONE production-facing version label.
+# Internal experiment/artifact versioning (v1/v2/v3, "experiment_*" names) must never leak into the
+# API, frontend, or reports -- there is exactly one production model from a founder's perspective.
+PUBLIC_MODEL_VERSION = "v1"
 TOP_N_ALTERNATIVES = 3
 
 # Below this top-1 probability, or when the top-2 classes are within this margin of each other,
@@ -237,7 +246,7 @@ def predict_industry(name: str, description: str) -> dict:
         "predicted_industry": predicted_label,
         "confidence": float(confidence),
         "alternatives": alternatives,
-        "model_version": metadata["version"],
+        "model_version": PUBLIC_MODEL_VERSION,
         "model_pipeline": metadata.get("selected_pipeline", "unknown"),
         "explanation": explanation,
         "is_uncertain": has_no_vocabulary or is_low_confidence or is_ambiguous,

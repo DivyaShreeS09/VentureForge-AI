@@ -70,11 +70,17 @@ SEED = 42
 TEST_SIZE = 0.2
 CV_FOLDS = 5
 MODEL_NAME = "industry_classifier"
-MODEL_VERSION = "v2"
-TAXONOMY_VERSION = "v2-yc-2012-2024"
+MODEL_VERSION = "v3"
+TAXONOMY_VERSION = "v3-yc-2005-2026-merged"
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MODEL_DIR = REPO_ROOT / "ml" / "models" / MODEL_NAME / MODEL_VERSION
-REAL_DATASET_PATH = REPO_ROOT / "ml" / "data" / "raw" / "industry_dataset.csv"
+# ML Dataset Expansion Evaluation Sprint: deployed after a real, evidence-based comparison against
+# the prior v2 artifact (trained on industry_dataset.csv alone) -- see ml/DATASETS.md "ML Dataset
+# Expansion Evaluation Sprint" for the full benchmark, McNemar significance test, and deployment
+# decision. industry_dataset.csv (the single-source 2012-2024 YC export) is left on disk unchanged
+# and remains reproducible via ml.src.preprocessing.prepare_yc_dataset for anyone auditing the v2
+# artifact's original training input.
+REAL_DATASET_PATH = REPO_ROOT / "ml" / "data" / "raw" / "industry_dataset_expanded_v2.csv"
 GOLD_SET_PATH = REPO_ROOT / "ml" / "data" / "gold" / "industry_gold_set.csv"
 EMBEDDING_CACHE_DIR = REPO_ROOT / "ml" / "data" / "processed"
 
@@ -595,12 +601,21 @@ def train() -> dict:
 
     if using_real_dataset:
         dataset_provenance = (
-            "Real dataset: kaggle:ibrahimqasimi/y-combinator-companies-2012-2024 (CC BY 4.0), "
-            "4,522 YC-backed companies 2012-2024, transformed by "
-            "ml/src/preprocessing/prepare_yc_dataset.py into ml/data/raw/industry_dataset.csv "
-            "(7-class taxonomy after excluding 'unspecified' and under-populated 'government'; "
-            "see ml/DATASETS.md for the full schema profile and class-balance discussion). "
-            "These metrics reflect a real, licensed, schema-inspected dataset."
+            "Real dataset: merge of THREE licensed sources (see ml/DATASETS.md 'ML Data "
+            "Acquisition & Corpus Expansion Sprint' and 'ML Dataset Expansion Evaluation Sprint' "
+            "for the full audit): (1) kaggle:ibrahimqasimi/y-combinator-companies-2012-2024 "
+            "(CC BY 4.0, 4,522 rows, 2012-2024), (2) kaggle:mohamedasak/y-combinator-startup-"
+            "directory-2025 (Apache-2.0, 629 rows, 2025 batches), (3) kaggle:alibekmamyrbay/"
+            "y-combinator-startups-full-directory-20052026 (CC-BY-SA-4.0, 5,884 rows, every batch "
+            "2005-2026). Transformed and deduplicated on exact description text (never company "
+            "name -- a 3.5% name/label conflict rate was found and resolved this way, see "
+            "ml/DATASETS.md) by ml/src/preprocessing/prepare_yc_full_directory_merge.py into "
+            "ml/data/raw/industry_dataset_expanded_v2.csv (same 7-class taxonomy as v2, after "
+            "excluding 'unspecified' and under-populated 'government'). Adopted only after a "
+            "real head-to-head benchmark against the prior v2 artifact showed CV macro-F1 "
+            "improvement (0.738->0.775), calibration improvement (ECE 0.201->0.137), and "
+            "flat-to-better gold-set performance on every metric -- not adopted on row-count "
+            "alone."
         )
     else:
         dataset_provenance = (
@@ -611,14 +626,18 @@ def train() -> dict:
 
     model_card = (
         "PURPOSE: classify a startup's industry (one of 7 classes) from a short name+description "
-        "founder pitch, to drive downstream market/competitor/persona agents. LIMITATIONS: trained "
-        "exclusively on YC-backed startups 2012-2024 (English-only, YC vocabulary/framing); "
-        "B2B is ~49% of training data, so ambiguous 'platform'-style language biases toward B2B; "
-        "the smallest class (education) has the weakest per-class metrics. KNOWN WEAKNESSES: "
-        "consumer-vs-b2b confusion is the dominant error mode (see ml/DATASETS.md 'Error "
-        "analysis'); calibration is imperfect (see ECE below) though empirically underconfident "
-        "rather than overconfident, which is the safer failure direction for a system that "
-        "surfaces uncertainty rather than hiding it. NOT SUITABLE for: non-YC-style company "
+        "founder pitch, to drive downstream market/competitor/persona agents. TRAINING DATA: "
+        "merge of three real, licensed YC-backed startup sources spanning every batch Summer "
+        "2005 - Spring 2026 (see dataset_provenance above) -- a real expansion over the prior v2 "
+        "artifact's single 2012-2024 source, adopted only after a head-to-head benchmark showed "
+        "genuine improvement (see ml/DATASETS.md). LIMITATIONS: still exclusively YC-backed "
+        "startups (English-only, YC vocabulary/framing) -- broadening the time range did not "
+        "diversify beyond YC's own population; B2B is ~55% of training data (higher than v2's "
+        "~50%, since the newly-added real data is itself even more B2B-heavy), so ambiguous "
+        "'platform'-style language biases toward B2B; education and real-estate-and-construction "
+        "remain the smallest classes. KNOWN WEAKNESSES: consumer-vs-b2b confusion is the dominant "
+        "error mode (see ml/DATASETS.md 'Error analysis'); calibration improved substantially vs "
+        "v2 (ECE 0.201->0.137) but is not perfect. NOT SUITABLE for: non-YC-style company "
         "descriptions, non-English input, or presenting predictions as certain fact — callers "
         "must surface `is_uncertain`/abstention fields."
     )

@@ -50,45 +50,48 @@ def generate_business_model(
         evidence_gaps.append("customer_segments")
         recommended_experiments.append("Define and validate the primary customer segment with real interviews.")
 
-    channels = "unknown — no go-to-market channel evidence submitted"
+    channels = "unknown — you haven't told me how you'll reach customers yet"
     evidence_gaps.append("channels")
     recommended_experiments.append("Test 1-2 candidate acquisition channels and measure conversion.")
 
-    customer_relationships = "unknown — no evidence submitted"
+    customer_relationships = "unknown — no evidence submitted yet on how you'll support or retain customers"
     evidence_gaps.append("customer_relationships")
 
     if revenue_estimate and revenue_estimate.get("available"):
         assumptions = revenue_estimate.get("assumptions_used", {})
+        price_field = (revenue_estimate.get("assumptions") or {}).get("price_per_customer_usd") or {}
+        is_user_supplied = price_field.get("assumption_source") == "user_supplied"
+        price_basis = "based on the number you gave me" if is_user_supplied else "a placeholder starting point, not something you've confirmed yet"
         revenue_streams = (
-            f"Usage-based pricing at ${assumptions.get('price_per_customer_usd')}/customer/month "
-            "(per user-supplied revenue_assumptions; see revenue_estimate for the full scenario range)."
+            f"Usage-based pricing at ${assumptions.get('price_per_customer_usd')}/customer/month — "
+            f"{price_basis}. See the revenue scenarios below for the full range."
         )
     else:
-        revenue_streams = "unknown — no revenue_assumptions were submitted"
+        revenue_streams = "unknown — you haven't told me your pricing yet"
         evidence_gaps.append("revenue_streams")
         recommended_experiments.append("Define a concrete pricing model and test willingness-to-pay with real prospects.")
 
-    key_resources = "unknown — no evidence submitted"
-    key_activities = "unknown — no evidence submitted"
-    key_partners = "unknown — no evidence submitted"
+    key_resources = "unknown — no evidence submitted yet on what this venture depends on to run"
+    key_activities = "unknown — no evidence submitted yet on the core activities this venture performs"
+    key_partners = "unknown — no evidence submitted yet on who this venture would need to partner with"
     evidence_gaps.extend(["key_resources", "key_activities", "key_partners"])
 
-    cost_structure = "unknown — no cost data submitted"
+    cost_structure = "unknown — no cost data submitted yet"
     evidence_gaps.append("cost_structure")
-    recommended_experiments.append("Track actual customer acquisition cost (CAC) and operating costs once live.")
+    recommended_experiments.append("Track your real acquisition and operating costs once you're live.")
 
     if revenue_model_clarity.get("raw_score") == 2 and revenue_estimate and revenue_estimate.get("available"):
-        unit_economics_readiness = "defined — pricing and revenue assumptions are documented"
+        unit_economics_readiness = "You've defined your pricing and revenue assumptions — that's real groundwork most founders skip."
     elif revenue_model_clarity.get("raw_score") in (0, None):
-        unit_economics_readiness = "not ready — revenue model not yet defined per the funding-readiness rubric"
+        unit_economics_readiness = "Your revenue model isn't defined yet — that's the next thing worth nailing down."
         evidence_gaps.append("unit_economics_readiness")
     else:
-        unit_economics_readiness = "partially defined"
+        unit_economics_readiness = "You've got a partial read on your unit economics — worth sharpening as you go."
 
     if competitive_differentiation.get("raw_score") == 2:
-        scalability = "some differentiation evidence exists; scalability depends on unvalidated channels/cost structure above"
+        scalability = "You already have some real differentiation — how far it scales still depends on channels and costs you haven't validated yet."
     else:
-        scalability = "cannot be assessed — no differentiation or channel evidence submitted"
+        scalability = "I can't assess scalability yet — there's no differentiation or channel evidence to reason from."
 
     return {
         "agent_version": AGENT_VERSION,
@@ -113,7 +116,8 @@ def generate_business_model(
             "unit_economics_readiness": "deterministic funding-readiness rubric (revenue_model_clarity dimension)",
         },
         "disclaimer": (
-            "No price, margin, CAC, LTV, revenue, or cost figure is invented. Fields not backed by "
-            "submitted evidence are marked unknown with a recommended experiment to validate them."
+            "I never invent a price, margin, cost, or revenue figure. Anywhere you see \"unknown\" "
+            "above, it's because you haven't given me that evidence yet — each one comes with a "
+            "concrete way to go find it."
         ),
     }

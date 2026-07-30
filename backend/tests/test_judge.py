@@ -39,7 +39,7 @@ def test_strengths_and_weaknesses_from_breakdown():
 def test_no_industry_prediction_is_disclosed_not_hidden():
     funding = assess_funding_readiness({"problem_clarity": 2})
     result = synthesize(None, funding, {"low_confidence": True, "notes": []})
-    assert "not classified" in result["overall_assessment"]
+    assert "couldn't confidently place this in a specific industry" in result["overall_assessment"]
 
 
 def test_never_fabricates_missing_evidence_dimensions():
@@ -128,6 +128,96 @@ def test_founder_guidance_items_present_and_never_confirmed_risk():
     assert by_dim["traction"]["category"] == "validation_opportunity"
     assert by_dim["revenue_model_clarity"]["category"] == "discovery_question"
     assert by_dim["team_completeness"]["category"] == "improvement_opportunity"
+
+
+# --- evidence_ledger (VentureForge Intelligence Architecture, Phase A) -------------------------
+
+
+def test_evidence_ledger_present_and_additive():
+    funding = assess_funding_readiness({"problem_clarity": 2, "traction": {"state": "not_sure_yet"}})
+    result = synthesize({"predicted_industry": "saas", "confidence": 0.9}, funding, {"low_confidence": False, "notes": []})
+    assert "evidence_ledger" in result
+    assert "evidence_ledger_summary" in result
+    dims = {item["dimension"] for item in result["evidence_ledger"] if item["dimension"]}
+    assert {"problem_clarity", "traction"}.issubset(dims)
+    # confidence_level (existing, backward-compatible field) is unchanged by the ledger's presence.
+    assert result["confidence_level"] in ("low", "medium", "high")
+
+
+def test_venture_frame_present_and_additive():
+    funding = assess_funding_readiness({"traction": 2})
+    result = synthesize(
+        {"predicted_industry": "saas", "confidence": 0.9},
+        funding,
+        {"low_confidence": False, "notes": []},
+        market_evidence={"customer_type": "SMB owners"},
+        startup_name="Nova",
+        startup_description="A subscription analytics dashboard for retail teams.",
+    )
+    assert "venture_frame" in result
+    assert result["venture_frame"]["startup_name"] == "Nova"
+    assert result["venture_frame"]["customer"]["value"] == "SMB owners"
+    # confidence_level (existing, backward-compatible field) is unchanged by the frame's presence.
+    assert result["confidence_level"] in ("low", "medium", "high")
+
+
+def test_hypothesis_set_present_and_additive():
+    funding = assess_funding_readiness({"traction": 2})
+    result = synthesize(
+        {"predicted_industry": "saas", "confidence": 0.9},
+        funding,
+        {"low_confidence": False, "notes": []},
+        market_evidence={"customer_type": "SMB owners"},
+        startup_name="Nova",
+        startup_description="A subscription analytics dashboard for retail teams.",
+    )
+    assert "hypothesis_set" in result
+    assert "target_customer" in result["hypothesis_set"]["categories"]
+    assert "major_opportunity" in result["hypothesis_set"]["categories"]
+    # confidence_level (existing, backward-compatible field) is unchanged by the new field.
+    assert result["confidence_level"] in ("low", "medium", "high")
+
+
+def test_contradiction_set_present_and_additive():
+    funding = assess_funding_readiness({"traction": 2})
+    result = synthesize(
+        {
+            "predicted_industry": "saas",
+            "confidence": 0.5,
+            "is_uncertain": True,
+            "alternatives": [{"industry": "fintech", "confidence": 0.45}],
+        },
+        funding,
+        {"low_confidence": False, "notes": []},
+        market_evidence={"customer_type": "SMB owners"},
+        startup_name="Nova",
+        startup_description="A subscription analytics dashboard for retail teams.",
+    )
+    assert "contradiction_set" in result
+    assert "contradictions" in result["contradiction_set"]
+    # confidence_level (existing, backward-compatible field) is unchanged by the new field.
+    assert result["confidence_level"] in ("low", "medium", "high")
+
+
+def test_alternative_explanation_set_present_and_additive():
+    funding = assess_funding_readiness({"traction": 2})
+    result = synthesize(
+        {
+            "predicted_industry": "saas",
+            "confidence": 0.5,
+            "is_uncertain": True,
+            "alternatives": [{"industry": "fintech", "confidence": 0.45}],
+        },
+        funding,
+        {"low_confidence": False, "notes": []},
+        market_evidence={"customer_type": "SMB owners"},
+        startup_name="Nova",
+        startup_description="A subscription analytics dashboard for retail teams.",
+    )
+    assert "alternative_explanation_set" in result
+    assert "alternative_explanations" in result["alternative_explanation_set"]
+    # confidence_level (existing, backward-compatible field) is unchanged by the new field.
+    assert result["confidence_level"] in ("low", "medium", "high")
 
 
 def test_uncertain_success_prediction_never_appended_to_weaknesses():
