@@ -6,7 +6,9 @@ services:
     rootDir: .
     buildCommand: pip install -r backend/requirements.txt
     startCommand: cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /api/v1/system/status
+    # /system/status is intentionally dev-only (see app/api/v1/system_status.py — it 404s whenever
+    # APP_ENV=production) so it can't be the health check; /health is the real always-on endpoint.
+    healthCheckPath: /api/v1/health
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.6
