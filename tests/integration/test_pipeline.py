@@ -13,8 +13,10 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.ml import predictor  # noqa: E402
+from conftest import wait_for_terminal_analysis  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -37,7 +39,9 @@ def test_submit_analyze_and_reload_returns_same_persisted_result(client):
 
     analyze_response = client.post(f"/api/v1/startups/{startup['id']}/analyze")
     assert analyze_response.status_code == 201
-    first = analyze_response.json()
+    # `/analyze` returns immediately with RUNNING (Act IV, The Forging) — wait for the real
+    # background orchestrator run to reach a terminal status before asserting on its output.
+    first = wait_for_terminal_analysis(client, analyze_response.json()["id"])
 
     assert first["status"] == "COMPLETED"
     # This test verifies the submit -> analyze -> persist -> reload round trip, not classifier

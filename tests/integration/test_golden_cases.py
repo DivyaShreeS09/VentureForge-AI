@@ -18,10 +18,12 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "backend"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from app.agents.competitor_agent import generate_competitor_analysis  # noqa: E402
 from app.ai.schemas import GeminiCompetitorPossibilities, _looks_like_named_company  # noqa: E402
 from app.ml import predictor  # noqa: E402
+from conftest import wait_for_terminal_analysis  # noqa: E402
 
 _CASES_DIR = Path(__file__).resolve().parent / "golden_cases"
 
@@ -47,7 +49,9 @@ def _run_case(client, case_name: str) -> dict:
 
     analyze_response = client.post(f"/api/v1/startups/{startup['id']}/analyze")
     assert analyze_response.status_code == 201
-    analysis = analyze_response.json()
+    # `/analyze` returns immediately with RUNNING (Act IV, The Forging) — wait for the real
+    # background orchestrator run to reach a terminal status before asserting on its output.
+    analysis = wait_for_terminal_analysis(client, analyze_response.json()["id"])
     assert analysis["status"] == "COMPLETED"
     return analysis
 
