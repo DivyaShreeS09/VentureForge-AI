@@ -1,0 +1,505 @@
+{
+  "model_name": "success_predictor",
+  "version": "v1",
+  "dataset_version": "v2-crunchbase-2013-date-features",
+  "n_duplicate_permalinks": 0,
+  "selected_algorithm": "hist_gradient_boosting",
+  "selected_pipeline": "hist_gradient_boosting",
+  "ensemble_and_target_encoding_finding": "voting_ensemble scored 0.8309 and hist_gradient_boosting_target_encoded scored 0.8317 on CV ROC-AUC, neither beating the selected hist_gradient_boosting (0.8327) \u2014 reported honestly as a null result, not forced into production.",
+  "hyperparameter_tuning": {
+    "tuned": true,
+    "n_iter": 20,
+    "best_cv_roc_auc": 0.8346687091997484,
+    "best_params": {
+      "clf__max_leaf_nodes": 31,
+      "clf__max_depth": null,
+      "clf__learning_rate": 0.1,
+      "clf__l2_regularization": 0.1
+    }
+  },
+  "calibration_method": "sigmoid",
+  "trained_at": "2026-07-18T15:37:58.344345+00:00",
+  "seed": 42,
+  "features": [
+    "funding_total_usd",
+    "funding_rounds",
+    "company_age_years",
+    "funding_span_years",
+    "category_count",
+    "time_to_first_funding_years",
+    "funding_recency_years",
+    "funding_per_round",
+    "funding_velocity",
+    "funding_per_category",
+    "primary_category",
+    "country_code"
+  ],
+  "n_train": 10667,
+  "n_test": 2667,
+  "using_real_dataset": true,
+  "dataset_provenance": "Real dataset: kaggle:yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase (Community Data License Agreement - Sharing 1.0), 66,368 Crunchbase-derived company records, transformed by ml/src/preprocessing/prepare_success_dataset.py into ml/data/raw/success_dataset.csv (13,334 rows with a resolved acquired/ipo/closed outcome; 'operating' rows excluded as unresolved \u2014 see ml/DATASETS.md). These metrics reflect a real, licensed, schema-inspected dataset.",
+  "cv_results": {
+    "dummy_stratified": {
+      "cv_roc_auc_mean": 0.5012438996107663,
+      "cv_roc_auc_std": 0.011295338179670869
+    },
+    "logreg": {
+      "cv_roc_auc_mean": 0.8158899581338849,
+      "cv_roc_auc_std": 0.0064190149078715095
+    },
+    "random_forest": {
+      "cv_roc_auc_mean": 0.8131636668147155,
+      "cv_roc_auc_std": 0.005663794995847622
+    },
+    "extra_trees": {
+      "cv_roc_auc_mean": 0.7920962783978331,
+      "cv_roc_auc_std": 0.005886474798454187
+    },
+    "gradient_boosting": {
+      "cv_roc_auc_mean": 0.8289659980650844,
+      "cv_roc_auc_std": 0.004595458678731435
+    },
+    "hist_gradient_boosting": {
+      "cv_roc_auc_mean": 0.8327145188445183,
+      "cv_roc_auc_std": 0.004885804595320818
+    },
+    "hist_gradient_boosting_target_encoded": {
+      "cv_roc_auc_mean": 0.8317354923233988,
+      "cv_roc_auc_std": 0.006033619791347825
+    },
+    "voting_ensemble": {
+      "cv_roc_auc_mean": 0.8309063851680115,
+      "cv_roc_auc_std": 0.005410358767081736
+    }
+  },
+  "cv_scheme": "RepeatedStratifiedKFold(n_splits=5, n_repeats=3)",
+  "train_metrics": {
+    "accuracy": 0.8146620418111934,
+    "balanced_accuracy": 0.8119438983656939,
+    "precision": 0.808436145381794,
+    "recall": 0.8541483177734719,
+    "f1": 0.8306638115631692,
+    "confusion_matrix": [
+      [
+        3841,
+        1149
+      ],
+      [
+        828,
+        4849
+      ]
+    ],
+    "confusion_matrix_labels": [
+      0,
+      1
+    ],
+    "roc_auc": 0.9093577855023065,
+    "pr_auc": 0.9234165894696331,
+    "brier_score": 0.12846999300724704
+  },
+  "test_metrics": {
+    "accuracy": 0.7742782152230971,
+    "balanced_accuracy": 0.7710289952295766,
+    "precision": 0.7696369636963697,
+    "recall": 0.8217054263565892,
+    "f1": 0.7948193592365371,
+    "confusion_matrix": [
+      [
+        899,
+        349
+      ],
+      [
+        253,
+        1166
+      ]
+    ],
+    "confusion_matrix_labels": [
+      0,
+      1
+    ],
+    "roc_auc": 0.8547578874613759,
+    "pr_auc": 0.8560249948126455,
+    "brier_score": 0.1536361831992832,
+    "mcc": 0.5460239409232412,
+    "cohen_kappa": 0.5445820739046374
+  },
+  "test_calibration": {
+    "expected_calibration_error": 0.018726719282142305,
+    "bins": [
+      {
+        "range": [
+          0.5,
+          0.6
+        ],
+        "count": 542,
+        "avg_confidence": 0.5499399594794624,
+        "avg_accuracy": 0.5645756457564576,
+        "gap": 0.014635686276995186
+      },
+      {
+        "range": [
+          0.6,
+          0.7
+        ],
+        "count": 464,
+        "avg_confidence": 0.6496747742810348,
+        "avg_accuracy": 0.6508620689655172,
+        "gap": 0.0011872946844824206
+      },
+      {
+        "range": [
+          0.7,
+          0.8
+        ],
+        "count": 525,
+        "avg_confidence": 0.7529889904394512,
+        "avg_accuracy": 0.7847619047619048,
+        "gap": 0.03177291432245355
+      },
+      {
+        "range": [
+          0.8,
+          0.9
+        ],
+        "count": 600,
+        "avg_confidence": 0.8505653281653158,
+        "avg_accuracy": 0.8833333333333333,
+        "gap": 0.03276800516801748
+      },
+      {
+        "range": [
+          0.9,
+          1.0
+        ],
+        "count": 536,
+        "avg_confidence": 0.9512702788999184,
+        "avg_accuracy": 0.960820895522388,
+        "gap": 0.009550616622469588
+      }
+    ]
+  },
+  "overfitting_check": {
+    "train_roc_auc": 0.9093577855023065,
+    "test_roc_auc": 0.8547578874613759,
+    "gap": 0.05459989804093057
+  },
+  "temporal_split_diagnostic": {
+    "ran": true,
+    "algorithm": "hist_gradient_boosting (untuned, uncalibrated \u2014 a fixed reference model, not the final tuned/calibrated pipeline, so this diagnostic isolates the temporal-drift question from the hyperparameter/calibration choices made on the random split)",
+    "train_rows": 10667,
+    "test_rows": 2667,
+    "train_date_range": [
+      "1971-01-01 00:00:00",
+      "2014-01-01 00:00:00"
+    ],
+    "test_date_range": [
+      "2014-01-02 00:00:00",
+      "2105-05-01 00:00:00"
+    ],
+    "excluded_rows_missing_last_funding_at": 0,
+    "roc_auc": 0.9140490345464991,
+    "accuracy": 0.83427071616048,
+    "f1": 0.8185550082101807,
+    "caveat_added_post_hoc": "A post-hoc investigation (see ml/DATASETS.md \"Temporal-split diagnostic (corrected after manual verification)\") found this 0.914 figure is NOT reliable evidence of forward-generalization: the recent 20% window is disproportionately composed of two near-deterministic categories (unknown -> failure, biotechnology -> success), whose combined share triples from 12.8% (train) to 30.8% (test). Date-derived features and one corrupted future-dated row were checked and ruled out as causes via direct ablation. The random-split test ROC-AUC (0.855) remains the trustworthy primary metric for this model; this diagnostic is retained for transparency, not as a validated claim."
+  },
+  "threshold_sweep": [
+    {
+      "threshold": 0.05,
+      "precision": 0.5729882733522038,
+      "recall": 0.9985905567300916,
+      "f1": 0.7281603288797533,
+      "accuracy": 0.6032995875515561
+    },
+    {
+      "threshold": 0.1,
+      "precision": 0.6014492753623188,
+      "recall": 0.9943622269203665,
+      "f1": 0.749535192563081,
+      "accuracy": 0.6464191976003
+    },
+    {
+      "threshold": 0.15,
+      "precision": 0.6246660730186999,
+      "recall": 0.9887244538407329,
+      "f1": 0.7656207366984993,
+      "accuracy": 0.6779152605924259
+    },
+    {
+      "threshold": 0.2,
+      "precision": 0.6477166821994408,
+      "recall": 0.9795630725863284,
+      "f1": 0.7798036465638148,
+      "accuracy": 0.7056617922759655
+    },
+    {
+      "threshold": 0.25,
+      "precision": 0.6673170731707317,
+      "recall": 0.9640591966173362,
+      "f1": 0.7886999135197463,
+      "accuracy": 0.7251593550806149
+    },
+    {
+      "threshold": 0.3,
+      "precision": 0.6845569620253165,
+      "recall": 0.952783650458069,
+      "f1": 0.7967000589275192,
+      "accuracy": 0.7412823397075365
+    },
+    {
+      "threshold": 0.35,
+      "precision": 0.7003171247357294,
+      "recall": 0.9337561663143058,
+      "f1": 0.8003624282694051,
+      "accuracy": 0.7521559805024371
+    },
+    {
+      "threshold": 0.4,
+      "precision": 0.7206703910614525,
+      "recall": 0.9090909090909091,
+      "f1": 0.8039887815518854,
+      "accuracy": 0.7641544806899138
+    },
+    {
+      "threshold": 0.45,
+      "precision": 0.7429088714544357,
+      "recall": 0.8675123326286117,
+      "f1": 0.8003901170351105,
+      "accuracy": 0.7697787776527935
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.7696369636963697,
+      "recall": 0.8217054263565892,
+      "f1": 0.7948193592365371,
+      "accuracy": 0.7742782152230971
+    },
+    {
+      "threshold": 0.55,
+      "precision": 0.7942446043165468,
+      "recall": 0.7780126849894292,
+      "f1": 0.7860448558205767,
+      "accuracy": 0.7746531683539557
+    },
+    {
+      "threshold": 0.6,
+      "precision": 0.8100961538461539,
+      "recall": 0.7124735729386892,
+      "f1": 0.7581552305961755,
+      "accuracy": 0.7581552305961755
+    },
+    {
+      "threshold": 0.65,
+      "precision": 0.8318181818181818,
+      "recall": 0.6448202959830867,
+      "f1": 0.7264787614132592,
+      "accuracy": 0.7416572928383952
+    },
+    {
+      "threshold": 0.7,
+      "precision": 0.8586171310629515,
+      "recall": 0.5863284002818887,
+      "f1": 0.6968174204355109,
+      "accuracy": 0.7285339332583427
+    },
+    {
+      "threshold": 0.75,
+      "precision": 0.8725247524752475,
+      "recall": 0.49682875264270615,
+      "f1": 0.6331387516838797,
+      "accuracy": 0.693663292088489
+    },
+    {
+      "threshold": 0.8,
+      "precision": 0.8991869918699187,
+      "recall": 0.38971106412966877,
+      "f1": 0.543756145526057,
+      "accuracy": 0.6520434945631796
+    },
+    {
+      "threshold": 0.85,
+      "precision": 0.9078014184397163,
+      "recall": 0.27061310782241016,
+      "f1": 0.4169381107491857,
+      "accuracy": 0.5973003374578177
+    },
+    {
+      "threshold": 0.9,
+      "precision": 0.9395348837209302,
+      "recall": 0.142353770260747,
+      "f1": 0.24724602203182375,
+      "accuracy": 0.5388076490438695
+    },
+    {
+      "threshold": 0.95,
+      "precision": 0.9885057471264368,
+      "recall": 0.06060606060606061,
+      "f1": 0.11420982735723771,
+      "accuracy": 0.49981252343457067
+    }
+  ],
+  "recommended_threshold": {
+    "threshold": 0.4,
+    "precision": 0.7206703910614525,
+    "recall": 0.9090909090909091,
+    "f1": 0.8039887815518854,
+    "accuracy": 0.7641544806899138
+  },
+  "threshold_objective": "f1",
+  "subgroup_metrics": {
+    "primary_category": [
+      {
+        "group": "unknown",
+        "n": 228,
+        "roc_auc": 0.9010370697263901
+      },
+      {
+        "group": "biotechnology",
+        "n": 195,
+        "roc_auc": 0.8031914893617021
+      },
+      {
+        "group": "software",
+        "n": 192,
+        "roc_auc": 0.7900666262870988
+      }
+    ],
+    "country_code": [
+      {
+        "group": "usa",
+        "n": 1639,
+        "roc_auc": 0.8101005230467473
+      },
+      {
+        "group": "unknown",
+        "n": 409,
+        "roc_auc": 0.8858508700930797
+      },
+      {
+        "group": "gbr",
+        "n": 100,
+        "roc_auc": 0.8433493589743589
+      }
+    ]
+  },
+  "learning_curve": {
+    "train_sizes": [
+      1422,
+      2844,
+      4266,
+      5688,
+      7111
+    ],
+    "train_roc_auc_mean": [
+      0.9962173993017315,
+      0.976827490123875,
+      0.9541475762799525,
+      0.9391195245304974,
+      0.9280176002040061
+    ],
+    "val_roc_auc_mean": [
+      0.789192231504376,
+      0.8169035054359514,
+      0.824426592535198,
+      0.8295895431027723,
+      0.8339172528954745
+    ]
+  },
+  "permutation_importance": [
+    {
+      "feature": "funding_total_usd",
+      "importance_mean": 0.07156843479517906,
+      "importance_std": 0.005892690458810225
+    },
+    {
+      "feature": "funding_recency_years",
+      "importance_mean": 0.04337886354601482,
+      "importance_std": 0.003395008457743606
+    },
+    {
+      "feature": "category_count",
+      "importance_mean": 0.030079360239244013,
+      "importance_std": 0.0035517855099939715
+    },
+    {
+      "feature": "country_code",
+      "importance_mean": 0.023748752055438194,
+      "importance_std": 0.0017817228666708008
+    },
+    {
+      "feature": "company_age_years",
+      "importance_mean": 0.012810885012919992,
+      "importance_std": 0.002470179109741523
+    },
+    {
+      "feature": "funding_span_years",
+      "importance_mean": 0.01021470857953427,
+      "importance_std": 0.001524778568860628
+    },
+    {
+      "feature": "primary_category",
+      "importance_mean": 0.006368950009938446,
+      "importance_std": 0.0020779762000830353
+    },
+    {
+      "feature": "funding_per_round",
+      "importance_mean": 0.0034993551345297025,
+      "importance_std": 0.0009547036166176776
+    },
+    {
+      "feature": "funding_velocity",
+      "importance_mean": 0.0012685271769575124,
+      "importance_std": 0.000689053306952024
+    },
+    {
+      "feature": "time_to_first_funding_years",
+      "importance_mean": 0.0010676137492999006,
+      "importance_std": 0.0007538934563875476
+    },
+    {
+      "feature": "funding_rounds",
+      "importance_mean": 0.00036859539039774125,
+      "importance_std": 0.0004932743441312296
+    },
+    {
+      "feature": "funding_per_category",
+      "importance_mean": -0.00044361323431075795,
+      "importance_std": 0.0006067751198607882
+    }
+  ],
+  "inference_latency_ms_per_prediction": 254.18571400001383,
+  "artifact_size_bytes": 2446316,
+  "library_versions": {
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "2.3.3",
+    "joblib": "1.5.3"
+  },
+  "label_meaning": {
+    "1": "success \u2014 reached an M&A exit or IPO (historical, resolved outcome)",
+    "0": "failure \u2014 shut down (historical, resolved outcome)"
+  },
+  "disclaimer": "This is a historical pattern estimate derived from resolved Crunchbase outcomes, not a guarantee of startup success. See ml/DATASETS.md for known limitations (cumulative funding-history features carry some inherent survivorship/timing bias).",
+  "training_command": "python -m ml.src.training.train_success_classifier",
+  "model_card": {
+    "purpose": "Estimate the historical likelihood that a startup with similar funding/category/geography characteristics reached a resolved M&A exit or IPO ('success') versus shutting down ('failure'), based on resolved Crunchbase outcomes. Intended as an informational pattern estimate surfaced alongside other VentureForge signals \u2014 never as the sole basis for a funding, investment, or resource decision.",
+    "training_data": "13,334 resolved-outcome Crunchbase company records (kaggle:yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase, CDLA-Sharing-1.0). 'Operating' (unresolved) companies are excluded from this classifier \u2014 see the Track 2 survival-analysis section of ml/DATASETS.md for why that exclusion is a real survivorship-bias concern, and how a Cox model addresses it instead.",
+    "known_limitations": [
+      "No investor-count field exists anywhere in the source dataset \u2014 cannot be used as a feature or reported as absent-but-available; genuinely not collected.",
+      "No funding-stage/round-type (e.g. seed/Series A) field exists \u2014 cannot construct a funding-stage-progression feature.",
+      "funding_total_usd and funding_rounds are cumulative totals as of each company's last recorded funding event, which partly reflects the outcome's own timeline (see 'Known limitations (success prediction)' in ml/DATASETS.md).",
+      "Excluding 'operating' companies (this classifier's target definition) introduces a real survivorship-bias risk: only companies whose fate has already resolved are used to train and evaluate it. The Track 2 survival analysis in ml/DATASETS.md addresses this using the same source data's censored (operating) rows.",
+      "Domain is Crunchbase-tracked companies only; not evaluated on non-Crunchbase or bootstrapped businesses."
+    ],
+    "scientific_caveats": [
+      "Historical pattern estimate, not a causal or predictive guarantee for any individual startup.",
+      "Target-encoding and ensemble candidates were evaluated honestly via cross-validation and only adopted if they demonstrably improved performance \u2014 see `ensemble_and_target_encoding_finding` above.",
+      "The temporal-split diagnostic (test_date_range originally included one corrupted future-dated row, since fixed in prepare_success_dataset.py) showed a higher AUC on recent data, but this was traced to a category-distribution shift, not genuine temporal robustness \u2014 see temporal_split_diagnostic.caveat_added_post_hoc."
+    ]
+  },
+  "_post_hoc_metrics_note": "mcc/cohen_kappa added post-hoc (ML Excellence Sprint) by computing directly from the already-stored, already-verified confusion_matrix above (sklearn.metrics.matthews_corrcoef / cohen_kappa_score) - no retraining, no change to the deployed model or its predictions.",
+  "gradient_boosting_family_investigation": {
+    "sprint": "ML Performance Optimization Sprint",
+    "finding": "XGBoost/LightGBM/CatBoost were not installed in this environment and were not added this pass. Justification: this model's own cv_results already compare hist_gradient_boosting (sklearn's native histogram-based GBM, algorithmically the same family as LightGBM) at 0.8327 CV ROC-AUC against gradient_boosting (sklearn's exact GBM) at 0.8290 -- a 0.37pp gap between two members of the same algorithm family. XGBoost/LightGBM/CatBoost would be expected to land in this same narrow band, not meaningfully above it, since the ceiling here is set by the feature set (10 tabular features, largely funding-history derived) rather than by which specific gradient-boosting implementation is used. Calibration is already strong (ECE 0.0187, sigmoid-calibrated) and threshold/hyperparameter tuning are already both present in this same metadata file. No scientifically justified swap identified this pass.",
+    "action_not_taken_reason": "Environment resource constraints (this session's industry-classifier runs repeatedly hit MemoryError on this machine) made installing and training 3 additional boosting libraries a low-expected-value use of remaining time given the narrow headroom above."
+  }
+}

@@ -1,0 +1,519 @@
+{
+  "model_name": "industry_classifier",
+  "version": "v3",
+  "taxonomy_version": "v3-yc-2005-2026-merged",
+  "selected_pipeline": "tfidf_word_char_logreg",
+  "is_embedding_model": false,
+  "embedding_model_name": null,
+  "trained_at": "2026-07-29T10:56:47.717029+00:00",
+  "training_command": "python -m ml.src.training.train_industry_classifier",
+  "seed": 42,
+  "labels": [
+    "b2b",
+    "consumer",
+    "education",
+    "fintech",
+    "healthcare",
+    "industrials",
+    "real estate and construction"
+  ],
+  "label_schema": {
+    "n_classes": 7,
+    "classes": [
+      "b2b",
+      "consumer",
+      "education",
+      "fintech",
+      "healthcare",
+      "industrials",
+      "real estate and construction"
+    ]
+  },
+  "feature_schema": {
+    "input": "single text string = build_text_feature(name, description)",
+    "representation": "TF-IDF (see selected_pipeline for word/char/combined configuration)"
+  },
+  "n_train": 5781,
+  "n_test": 1446,
+  "n_gold_excluded_from_training": 140,
+  "using_real_dataset": true,
+  "dataset_provenance": "Real dataset: merge of THREE licensed sources (see ml/DATASETS.md 'ML Data Acquisition & Corpus Expansion Sprint' and 'ML Dataset Expansion Evaluation Sprint' for the full audit): (1) kaggle:ibrahimqasimi/y-combinator-companies-2012-2024 (CC BY 4.0, 4,522 rows, 2012-2024), (2) kaggle:mohamedasak/y-combinator-startup-directory-2025 (Apache-2.0, 629 rows, 2025 batches), (3) kaggle:alibekmamyrbay/y-combinator-startups-full-directory-20052026 (CC-BY-SA-4.0, 5,884 rows, every batch 2005-2026). Transformed and deduplicated on exact description text (never company name -- a 3.5% name/label conflict rate was found and resolved this way, see ml/DATASETS.md) by ml/src/preprocessing/prepare_yc_full_directory_merge.py into ml/data/raw/industry_dataset_expanded_v2.csv (same 7-class taxonomy as v2, after excluding 'unspecified' and under-populated 'government'). Adopted only after a real head-to-head benchmark against the prior v2 artifact showed CV macro-F1 improvement (0.738->0.775), calibration improvement (ECE 0.201->0.137), and flat-to-better gold-set performance on every metric -- not adopted on row-count alone.",
+  "dataset_fingerprint_sha256": "2a03cae134899d92b2b3632f524922f3768ef109ea86b10d1098dff89d2ec0ab",
+  "library_versions": {
+    "python": "3.14.2",
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "2.3.3",
+    "torch": "2.13.0+cpu",
+    "sentence-transformers": "5.6.0"
+  },
+  "distilbert_finetuning": "Not attempted \u2014 Only 1.21GB free of 7.77GB total \u2014 well below a safe margin for holding transformer weights + gradients + optimizer state simultaneously. Skipped.",
+  "cv_results": {
+    "dummy_stratified": {
+      "cv_macro_f1_mean": 0.13943954128605535,
+      "cv_macro_f1_std": 0.00698595212344882
+    },
+    "tfidf_logreg": {
+      "cv_macro_f1_mean": 0.7648845490930223,
+      "cv_macro_f1_std": 0.014637791565855426
+    },
+    "tfidf_linear_svc_calibrated": {
+      "cv_macro_f1_mean": 0.7656850835163447,
+      "cv_macro_f1_std": 0.007183262100460647
+    },
+    "tfidf_complement_nb": {
+      "cv_macro_f1_mean": 0.7113204394802672,
+      "cv_macro_f1_std": 0.0041008530104843085
+    },
+    "tfidf_char_logreg": {
+      "cv_macro_f1_mean": 0.7540949597248818,
+      "cv_macro_f1_std": 0.014431603836717832
+    },
+    "tfidf_word_char_logreg": {
+      "cv_macro_f1_mean": 0.7751034354021417,
+      "cv_macro_f1_std": 0.013471478504895917
+    },
+    "tfidf_word_char_logreg_calibrated": {
+      "cv_macro_f1_mean": 0.7652855781336874,
+      "cv_macro_f1_std": 0.017840677211920047
+    },
+    "tfidf_svd_logreg": {
+      "cv_macro_f1_mean": 0.6806272328575587,
+      "cv_macro_f1_std": 0.014130553791760477
+    },
+    "embed_logreg": {
+      "cv_macro_f1_mean": 0.7310441736513026,
+      "cv_macro_f1_std": 0.003064592336265845
+    },
+    "embed_linear_svc_calibrated": {
+      "cv_macro_f1_mean": 0.7418527461049529,
+      "cv_macro_f1_std": 0.00967550743850626
+    },
+    "embed_histgb": {
+      "cv_macro_f1_mean": 0.6407289303654926,
+      "cv_macro_f1_std": 0.016217338338691458
+    }
+  },
+  "test_metrics": {
+    "accuracy": 0.793222683264177,
+    "balanced_accuracy": 0.8129754470917351,
+    "macro_precision": 0.7376994080066935,
+    "macro_recall": 0.8129754470917351,
+    "macro_f1": 0.768843155093632,
+    "weighted_f1": 0.7989995652397226,
+    "per_class": {
+      "b2b": {
+        "precision": 0.9171686746987951,
+        "recall": 0.7660377358490567,
+        "f1": 0.8348183687457162,
+        "support": 795.0
+      },
+      "consumer": {
+        "precision": 0.5904059040590406,
+        "recall": 0.8205128205128205,
+        "f1": 0.6866952789699571,
+        "support": 195.0
+      },
+      "education": {
+        "precision": 0.7333333333333333,
+        "recall": 0.8461538461538461,
+        "f1": 0.7857142857142857,
+        "support": 26.0
+      },
+      "fintech": {
+        "precision": 0.6666666666666666,
+        "recall": 0.8163265306122449,
+        "f1": 0.7339449541284404,
+        "support": 147.0
+      },
+      "healthcare": {
+        "precision": 0.8709677419354839,
+        "recall": 0.8490566037735849,
+        "f1": 0.8598726114649682,
+        "support": 159.0
+      },
+      "industrials": {
+        "precision": 0.6909090909090909,
+        "recall": 0.8351648351648352,
+        "f1": 0.7562189054726368,
+        "support": 91.0
+      },
+      "real estate and construction": {
+        "precision": 0.6944444444444444,
+        "recall": 0.7575757575757576,
+        "f1": 0.7246376811594203,
+        "support": 33.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        609,
+        93,
+        4,
+        50,
+        10,
+        23,
+        6
+      ],
+      [
+        17,
+        160,
+        3,
+        6,
+        3,
+        4,
+        2
+      ],
+      [
+        1,
+        1,
+        22,
+        0,
+        2,
+        0,
+        0
+      ],
+      [
+        15,
+        5,
+        1,
+        120,
+        2,
+        1,
+        3
+      ],
+      [
+        9,
+        8,
+        0,
+        2,
+        135,
+        5,
+        0
+      ],
+      [
+        8,
+        3,
+        0,
+        1,
+        3,
+        76,
+        0
+      ],
+      [
+        5,
+        1,
+        0,
+        1,
+        0,
+        1,
+        25
+      ]
+    ],
+    "confusion_matrix_labels": [
+      "b2b",
+      "consumer",
+      "education",
+      "fintech",
+      "healthcare",
+      "industrials",
+      "real estate and construction"
+    ],
+    "log_loss": 0.683546571643448
+  },
+  "test_top2_accuracy": 0.9598893499308437,
+  "calibration": {
+    "expected_calibration_error": 0.13711904908988828,
+    "bins": [
+      {
+        "range": [
+          0.1,
+          0.2
+        ],
+        "count": 1,
+        "avg_confidence": 0.18263173328075896,
+        "avg_accuracy": 1.0,
+        "gap": 0.817368266719241
+      },
+      {
+        "range": [
+          0.2,
+          0.3
+        ],
+        "count": 38,
+        "avg_confidence": 0.275804508310311,
+        "avg_accuracy": 0.42105263157894735,
+        "gap": 0.14524812326863634
+      },
+      {
+        "range": [
+          0.3,
+          0.4
+        ],
+        "count": 124,
+        "avg_confidence": 0.3576849492058281,
+        "avg_accuracy": 0.5241935483870968,
+        "gap": 0.16650859918126865
+      },
+      {
+        "range": [
+          0.4,
+          0.5
+        ],
+        "count": 212,
+        "avg_confidence": 0.44988412237751324,
+        "avg_accuracy": 0.6462264150943396,
+        "gap": 0.1963422927168264
+      },
+      {
+        "range": [
+          0.5,
+          0.6
+        ],
+        "count": 220,
+        "avg_confidence": 0.5509353096220418,
+        "avg_accuracy": 0.7681818181818182,
+        "gap": 0.21724650855977634
+      },
+      {
+        "range": [
+          0.6,
+          0.7
+        ],
+        "count": 208,
+        "avg_confidence": 0.6487860584366238,
+        "avg_accuracy": 0.8076923076923077,
+        "gap": 0.15890624925568386
+      },
+      {
+        "range": [
+          0.7,
+          0.8
+        ],
+        "count": 215,
+        "avg_confidence": 0.7519035388841566,
+        "avg_accuracy": 0.8883720930232558,
+        "gap": 0.1364685541390992
+      },
+      {
+        "range": [
+          0.8,
+          0.9
+        ],
+        "count": 242,
+        "avg_confidence": 0.8466987243620286,
+        "avg_accuracy": 0.9256198347107438,
+        "gap": 0.07892111034871518
+      },
+      {
+        "range": [
+          0.9,
+          1.0
+        ],
+        "count": 186,
+        "avg_confidence": 0.9441971177097953,
+        "avg_accuracy": 0.946236559139785,
+        "gap": 0.0020394414299896857
+      }
+    ]
+  },
+  "calibration_comparison_ece": {
+    "tfidf_linear_svc_calibrated": 0.0599993086918786,
+    "tfidf_word_char_logreg_calibrated": 0.05875198415875202,
+    "embed_linear_svc_calibrated": 0.06963452141626783
+  },
+  "abstention": {
+    "thresholds_explored": [
+      0.4,
+      0.5,
+      0.6,
+      0.7
+    ],
+    "recommended_default_threshold": 0.5,
+    "test_set": [
+      {
+        "threshold": 0.4,
+        "coverage": 0.8872752420470262,
+        "n_covered": 1283,
+        "accuracy_on_covered": 0.8300857365549493
+      },
+      {
+        "threshold": 0.5,
+        "coverage": 0.7406639004149378,
+        "n_covered": 1071,
+        "accuracy_on_covered": 0.8664799253034547
+      },
+      {
+        "threshold": 0.6,
+        "coverage": 0.5885200553250346,
+        "n_covered": 851,
+        "accuracy_on_covered": 0.8918918918918919
+      },
+      {
+        "threshold": 0.7,
+        "coverage": 0.44467496542185336,
+        "n_covered": 643,
+        "accuracy_on_covered": 0.9191290824261276
+      }
+    ]
+  },
+  "gold_set_evaluation": {
+    "n_gold_rows": 140,
+    "metrics": {
+      "accuracy": 0.7714285714285715,
+      "balanced_accuracy": 0.7714285714285715,
+      "macro_precision": 0.8102760334903192,
+      "macro_recall": 0.7714285714285715,
+      "macro_f1": 0.779933884387755,
+      "weighted_f1": 0.7799338843877551,
+      "per_class": {
+        "b2b": {
+          "precision": 0.5769230769230769,
+          "recall": 0.75,
+          "f1": 0.6521739130434783,
+          "support": 20.0
+        },
+        "consumer": {
+          "precision": 0.5384615384615384,
+          "recall": 0.7,
+          "f1": 0.6086956521739131,
+          "support": 20.0
+        },
+        "education": {
+          "precision": 1.0,
+          "recall": 0.65,
+          "f1": 0.7878787878787878,
+          "support": 20.0
+        },
+        "fintech": {
+          "precision": 0.7142857142857143,
+          "recall": 0.75,
+          "f1": 0.7317073170731707,
+          "support": 20.0
+        },
+        "healthcare": {
+          "precision": 1.0,
+          "recall": 0.85,
+          "f1": 0.918918918918919,
+          "support": 20.0
+        },
+        "industrials": {
+          "precision": 0.9047619047619048,
+          "recall": 0.95,
+          "f1": 0.926829268292683,
+          "support": 20.0
+        },
+        "real estate and construction": {
+          "precision": 0.9375,
+          "recall": 0.75,
+          "f1": 0.8333333333333334,
+          "support": 20.0
+        }
+      },
+      "confusion_matrix": [
+        [
+          15,
+          2,
+          0,
+          3,
+          0,
+          0,
+          0
+        ],
+        [
+          3,
+          14,
+          0,
+          1,
+          0,
+          1,
+          1
+        ],
+        [
+          1,
+          6,
+          13,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          4,
+          1,
+          0,
+          15,
+          0,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          0,
+          1,
+          17,
+          0,
+          0
+        ],
+        [
+          0,
+          1,
+          0,
+          0,
+          0,
+          19,
+          0
+        ],
+        [
+          1,
+          2,
+          0,
+          1,
+          0,
+          1,
+          15
+        ]
+      ],
+      "confusion_matrix_labels": [
+        "b2b",
+        "consumer",
+        "education",
+        "fintech",
+        "healthcare",
+        "industrials",
+        "real estate and construction"
+      ],
+      "log_loss": 0.6693207959721706
+    },
+    "top2_accuracy": 0.9214285714285714,
+    "abstention": [
+      {
+        "threshold": 0.4,
+        "coverage": 0.8785714285714286,
+        "n_covered": 123,
+        "accuracy_on_covered": 0.8536585365853658
+      },
+      {
+        "threshold": 0.5,
+        "coverage": 0.7357142857142858,
+        "n_covered": 103,
+        "accuracy_on_covered": 0.9029126213592233
+      },
+      {
+        "threshold": 0.6,
+        "coverage": 0.5928571428571429,
+        "n_covered": 83,
+        "accuracy_on_covered": 0.927710843373494
+      },
+      {
+        "threshold": 0.7,
+        "coverage": 0.4857142857142857,
+        "n_covered": 68,
+        "accuracy_on_covered": 0.9558823529411765
+      }
+    ]
+  },
+  "inference_latency_ms_per_prediction": 2.3687500000005457,
+  "model_card": "PURPOSE: classify a startup's industry (one of 7 classes) from a short name+description founder pitch, to drive downstream market/competitor/persona agents. TRAINING DATA: merge of three real, licensed YC-backed startup sources spanning every batch Summer 2005 - Spring 2026 (see dataset_provenance above) -- a real expansion over the prior v2 artifact's single 2012-2024 source, adopted only after a head-to-head benchmark showed genuine improvement (see ml/DATASETS.md). LIMITATIONS: still exclusively YC-backed startups (English-only, YC vocabulary/framing) -- broadening the time range did not diversify beyond YC's own population; B2B is ~55% of training data (higher than v2's ~50%, since the newly-added real data is itself even more B2B-heavy), so ambiguous 'platform'-style language biases toward B2B; education and real-estate-and-construction remain the smallest classes. KNOWN WEAKNESSES: consumer-vs-b2b confusion is the dominant error mode (see ml/DATASETS.md 'Error analysis'); calibration improved substantially vs v2 (ECE 0.201->0.137) but is not perfect. NOT SUITABLE for: non-YC-style company descriptions, non-English input, or presenting predictions as certain fact \u2014 callers must surface `is_uncertain`/abstention fields."
+}

@@ -37,6 +37,24 @@ ml/models/*
 *.csv
 *.parquet
 
+# Deployment exception: only the two artifacts actually loaded by serving code at the versions
+# app/ml/predictor.py (MODEL_VERSION="v3") and app/ml/success_predictor.py (MODEL_VERSION="v1")
+# read are committed — ~7.6MB total — so a fresh Render deploy has real models instead of every
+# ML-backed feature degrading. Everything else under ml/models/ (venture_retrieval — disabled by
+# default; survival_model and industry_classifier's loose experiment-result JSON — not referenced
+# by any serving code at all; success_predictor/_smoke_test — local test scratch output) stays
+# gitignored: it's dead weight for deployment, not a genuine production need. Must come after the
+# *.pkl/*.joblib/etc. blanket ignores above, since git's last-matching-pattern-wins means an
+# earlier negation here would otherwise be re-excluded by those broader rules.
+!ml/models/industry_classifier
+!ml/models/industry_classifier/v3
+!ml/models/industry_classifier/v3/**
+ml/models/industry_classifier/*.json
+!ml/models/success_predictor
+!ml/models/success_predictor/v1
+!ml/models/success_predictor/v1/**
+ml/models/success_predictor/_smoke_test
+
 # Kaggle credentials — never read from or committed to this repo (see scripts/download_datasets.py)
 kaggle.json
 .kaggle/
