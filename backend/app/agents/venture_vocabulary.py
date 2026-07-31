@@ -44,12 +44,12 @@ def readable_label(label: str) -> str:
     return label
 
 
-# Coarse venture-category buckets. Matched, in order, against the lower-cased join of
-# primary_domain + model_category.label + deployment_sectors + startup_description — first match
-# wins, so more specific buckets (healthcare, fintech, cybersecurity...) are listed before the
-# generic b2b/consumer catch-alls. `startup_description` is included specifically because
-# venture_positioning.primary_domain and model_category.label are both drawn from a fixed, coarse
-# label set (b2b/consumer/fintech/healthcare/education/industrials) — without the founder's own raw
+# Coarse venture-category buckets, keyed by keyword/phrase tuples. See `resolve_category` below for
+# how these are matched (Final AI Quality Sprint, Phase 2: staged, confidence-ranked resolution —
+# the venture's own classified industry always outranks the free-text description; "b2b"/"consumer"
+# are last-resort catch-alls). `startup_description` still matters because venture_positioning's
+# primary_domain and model_category.label are both drawn from a fixed, coarse label set
+# (b2b/consumer/fintech/healthcare/education/industrials) — without the founder's own raw
 # description text, two very different businesses that both resolve to e.g. "b2b" (a cybersecurity
 # pentesting tool and a canteen SaaS) would otherwise get byte-identical GTM/feature/competitor
 # guidance. See the Product Intelligence Sprint audit that surfaced this.
@@ -57,11 +57,11 @@ _CATEGORY_KEYWORDS: dict[str, tuple[str, ...]] = {
     "healthcare": ("health", "clinical", "patient", "medical", "diagnos", "telemedicine", "hospital", "pharma", "veterinar", "clinic", "biotech"),
     "insurance": ("insurtech", "insurance", "insurer", "underwriting", "claims process", "policyholder", "actuarial"),
     "fintech": ("fintech", "financ", "payment", "lending", "banking", "credit", "crypto", "custody"),
-    "cybersecurity": ("cybersecurity", "cyber security", "penetration test", "pentest", "vulnerability", "threat detection", "security audit"),
+    "cybersecurity": ("cybersecurity", "cyber security", "penetration test", "pentest", "vulnerability", "threat detection", "security audit", "phishing", "malware", "ransomware", "social engineering", "security awareness", "security training"),
     "legaltech": ("legaltech", "legal tech", "contract review", "law firm", "litigation", "e-discovery", "paralegal"),
     "hrtech": ("hrtech", "hr tech", "recruiting", "applicant tracking", "payroll", "employee onboarding", "performance review", "talent management"),
     "proptech": ("proptech", "property management", "real estate", "leasing", "landlord", "tenant", "commercial real estate"),
-    "retailtech": ("retailtech", "retail tech", "point of sale", "pos system", "inventory management", "e-commerce storefront", "merchandising"),
+    "retailtech": ("retailtech", "retail tech", "retail", "point of sale", "pos system", "inventory management", "e-commerce storefront", "e-commerce", "ecommerce", "merchandising", "subscription box", "online store"),
     "travel_hospitality": ("travel", "hospitality", "hotel", "booking engine", "itinerary", "vacation rental", "airline", "guest experience"),
     "govtech": ("govtech", "gov tech", "government agency", "public sector", "municipal", "citizen services", "permitting"),
     "climatetech": ("climatetech", "climate tech", "carbon", "emissions", "sustainability reporting", "renewable energy", "esg reporting", "cleantech"),
@@ -191,19 +191,91 @@ def all_resolvable_categories() -> list[str]:
     return sorted(list(_CATEGORY_KEYWORDS.keys()) + ["generic"])
 
 
+# These two buckets match trivially against their own name ("b2b" contains "b2b") and are meant as
+# last-resort catch-alls, never a real signal to rank against specific categories — see
+# `resolve_category`'s staged resolution below (Final AI Quality Sprint, Phase 2).
+_CATCH_ALL_CATEGORIES = ("b2b", "consumer")
+_SPECIFIC_CATEGORY_KEYWORDS = {k: v for k, v in _CATEGORY_KEYWORDS.items() if k not in _CATCH_ALL_CATEGORIES}
+_CATCH_ALL_CATEGORY_KEYWORDS = {k: v for k, v in _CATEGORY_KEYWORDS.items() if k in _CATCH_ALL_CATEGORIES}
+
+
+def _normalize_haystack(text: str) -> str:
+    # Hyphens treated as word separators, e.g. "security-awareness" matches a keyword written as
+    # "security awareness" — the founder's own phrasing shouldn't have to match a keyword's exact
+    # punctuation. (Several keyword tuples below still list both a hyphenated and spaced form of
+    # the same phrase, e.g. logistics' "last-mile"/"last mile" — a pre-existing workaround for this
+    # same gap, kept as-is since either form still matches correctly after this normalization.)
+    return text.lower().replace("-", " ")
+
+
+def _best_matching_category(haystack: str, keyword_table: dict[str, tuple[str, ...]]) -> str | None:
+    """The category with the most distinct keyword hits in `haystack` — confidence-ranked, not
+    first-dict-entry-wins. Ties broken by `keyword_table`'s own iteration order (deterministic,
+    since dicts preserve insertion order), matching the old first-match behavior only when no
+    category has more matches than another."""
+    best_category: str | None = None
+    best_count = 0
+    for category, keywords in keyword_table.items():
+        count = sum(1 for kw in keywords if kw.replace("-", " ") in haystack)
+        if count > best_count:
+            best_category, best_count = category, count
+    return best_category
+
+
 def resolve_category(
     primary_domain: str | None,
     model_category_label: str | None,
     deployment_sectors: list[str] | None = None,
     startup_description: str | None = None,
 ) -> str:
-    haystack = " ".join(
-        filter(None, [primary_domain, model_category_label, " ".join(deployment_sectors or []), startup_description])
-    ).lower()
-    for category, keywords in _CATEGORY_KEYWORDS.items():
-        if any(kw in haystack for kw in keywords):
-            return category
-    return "generic"
+    """Final AI Quality Sprint, Phase 2 fix: the pre-submission audit found a cybersecurity startup
+    whose own description happened to mention "healthcare customers" get Healthcare knowledge-pack
+    advice instead of Cybersecurity — because the old implementation scanned one combined haystack
+    (classified industry + raw founder description) and returned the FIRST dict-ordered category
+    with any match at all, so an incidental customer-vertical mention could out-rank the venture's
+    actual, already-classified industry.
+
+    Resolution is now staged, classified signal first:
+      1. Score every SPECIFIC category (never the generic "b2b"/"consumer" catch-alls) against only
+         `primary_domain` + `deployment_sectors` — the venture's own already-resolved, specific
+         taxonomy identity (e.g. "Sustainability Technology", "Clinical Decision Support"), never
+         `model_category_label` or the free-text description. If anything matches here, that
+         already-classified signal wins outright.
+         `model_category_label` is deliberately EXCLUDED from this stage even though it is also a
+         "classified" signal: it is the raw industry classifier's coarse fallback label set
+         (b2b/consumer/fintech/healthcare/education/industrials), and one of those coarse labels —
+         "industrials" — substring-matches the hardware category's "industrial" keyword. Letting
+         that alone win here regression-tested as a real bug: a ClimateTech pitch ("carbon-
+         accounting software... emissions... sustainability disclosures" for "industrials"-labeled
+         manufacturers) was pulled into the hardware knowledge pack before the description's far
+         more specific "carbon"/"emissions" signal ever got a chance to be counted. Folding
+         `model_category_label` into stage 2 instead means it still contributes real signal, but
+         only by the same confidence-ranked, most-matches-wins rule as the description — never as
+         an outright override.
+      2. Only if stage 1 matched nothing does `model_category_label` and the founder's own
+         description get folded in, resolved by which category has the MOST matched keywords
+         (confidence ranking) across the combined text, not whichever appears first in the dict.
+      3. Only if nothing specific matched at all does resolution fall back to the generic "b2b"/
+         "consumer" catch-alls, still checked against the full haystack.
+    """
+    classified_haystack = _normalize_haystack(
+        " ".join(filter(None, [primary_domain, " ".join(deployment_sectors or [])]))
+    )
+    category = _best_matching_category(classified_haystack, _SPECIFIC_CATEGORY_KEYWORDS)
+    if category is not None:
+        return category
+
+    full_haystack = _normalize_haystack(
+        " ".join(
+            filter(None, [primary_domain, model_category_label, " ".join(deployment_sectors or []), startup_description])
+        )
+    )
+    category = _best_matching_category(full_haystack, _SPECIFIC_CATEGORY_KEYWORDS)
+    if category is not None:
+        return category
+
+    category = _best_matching_category(full_haystack, _CATCH_ALL_CATEGORY_KEYWORDS)
+    return category or "generic"
 
 
 def vocab_for(

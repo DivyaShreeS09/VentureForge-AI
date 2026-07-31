@@ -95,6 +95,62 @@ POSITIONING_TAXONOMY: dict[str, DomainSpec] = {
         high_specificity=frozenset(),
         deployment_sectors=frozenset(),
     ),
+    # Final AI Quality Sprint, Phase 1: added after the pre-submission audit found real Robotics,
+    # Logistics, and Retail/E-commerce pitches confidently (sometimes "taxonomy_dominant") mislabeled
+    # as "Enterprise AI" — the only broad catch-all that existed for AI-adjacent language ("AI",
+    # "platform", "automation", "autonomous", "predictive") when no domain-specific vocabulary was
+    # defined for these verticals. Vocabulary/weights are drawn directly from the physical-hardware
+    # buying-pattern signals app.agents.venture_vocabulary/industry_knowledge_packs already used for
+    # its "hardware" knowledge pack (that pack already explicitly covers "robotics, industrial IoT,
+    # manufacturing, construction tech" — consolidated into ONE domain here rather than several
+    # near-duplicate ones, per this sprint's "do not create unnecessary categories" instruction).
+    "Robotics & Industrial Hardware": DomainSpec(
+        name="Robotics & Industrial Hardware",
+        specificity_rank=2,
+        keywords={
+            "robot": 1.2, "robots": 1.2, "robotic": 1.0, "robotics": 1.6, "drone": 1.0, "drones": 1.0,
+            "manufacturing": 1.2, "manufacturer": 1.0, "factory": 1.0, "assembly": 0.8, "warehouse": 0.5,
+        },
+        phrases={
+            "robotic arm": 1.8, "robotic arms": 1.8, "computer vision": 1.0, "industrial automation": 1.8,
+            "assembly line": 1.6, "warehouse automation": 1.8, "picking robots": 1.8, "autonomous robots": 1.6,
+        },
+        high_specificity=frozenset({
+            "robotic arm", "robotic arms", "industrial automation", "assembly line",
+            "warehouse automation", "picking robots", "robotics",
+        }),
+        deployment_sectors=frozenset(),
+    ),
+    "Logistics & Supply Chain": DomainSpec(
+        name="Logistics & Supply Chain",
+        specificity_rank=2,
+        keywords={
+            "logistics": 1.6, "freight": 1.2, "fleet": 1.0, "shipping": 1.0, "delivery": 0.6,
+            "dispatch": 1.0, "warehouse": 0.5, "distribution": 0.8,
+        },
+        phrases={
+            "last mile": 1.8, "supply chain": 1.6, "route optimization": 1.8, "fleet management": 1.6,
+            "delivery logistics": 1.6, "distribution center": 1.4,
+        },
+        high_specificity=frozenset(
+            {"last mile", "supply chain", "route optimization", "fleet management", "logistics"}
+        ),
+        deployment_sectors=frozenset(),
+    ),
+    "Retail & E-commerce": DomainSpec(
+        name="Retail & E-commerce",
+        specificity_rank=3,
+        keywords={
+            "retail": 1.0, "ecommerce": 1.4, "storefront": 1.0, "merchandising": 1.0, "checkout": 0.8,
+            "shopping": 0.6, "subscription": 0.5,
+        },
+        phrases={
+            "e commerce": 1.4, "online store": 1.4, "subscription box": 1.8, "point of sale": 1.4,
+            "online retail": 1.4, "direct to consumer": 1.2,
+        },
+        high_specificity=frozenset({"subscription box", "e commerce", "online retail", "ecommerce"}),
+        deployment_sectors=frozenset(),
+    ),
     "Clinical Decision Support": DomainSpec(
         name="Clinical Decision Support",
         specificity_rank=1,

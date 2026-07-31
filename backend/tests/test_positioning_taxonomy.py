@@ -102,6 +102,38 @@ def test_no_eligible_candidates_returns_empty_list_and_is_ambiguous():
     assert taxonomy_is_ambiguous(result["candidates"]) is True
 
 
+def test_robotics_pitch_resolves_to_robotics_not_enterprise_ai():
+    """Final AI Quality Sprint, Phase 1: the pre-submission audit found a real warehouse-robotics
+    pitch confidently mislabeled as Enterprise AI because no Robotics domain existed at all."""
+    result = score_taxonomy(
+        "We build autonomous picking robots that use computer vision and robotic arms to fulfill "
+        "e-commerce orders inside warehouse fulfillment centers, cutting the number of temporary "
+        "pickers a warehouse needs during peak season."
+    )
+    assert result["candidates"][0]["domain"] == "Robotics & Industrial Hardware"
+    assert "Enterprise AI" not in {c["domain"] for c in result["candidates"]}
+
+
+def test_logistics_pitch_resolves_to_logistics_not_enterprise_ai():
+    result = score_taxonomy(
+        "We help grocery delivery companies plan smarter last-mile routes across their driver "
+        "fleet, cutting delivery time and fuel cost by continuously re-optimizing each driver's "
+        "route as new orders come in."
+    )
+    assert result["candidates"][0]["domain"] == "Logistics & Supply Chain"
+    assert "Enterprise AI" not in {c["domain"] for c in result["candidates"]}
+
+
+def test_retail_subscription_pitch_resolves_to_retail_not_enterprise_ai():
+    result = score_taxonomy(
+        "We run a subscription box service that uses a short style quiz to curate a personalized "
+        "set of clothing items for each subscriber every month, shipped directly from our online "
+        "store."
+    )
+    assert result["candidates"][0]["domain"] == "Retail & E-commerce"
+    assert "Enterprise AI" not in {c["domain"] for c in result["candidates"]}
+
+
 def test_all_scores_retained_for_explainability_even_when_ineligible():
     result = score_taxonomy("An app for people.")
     all_domains = {c["domain"] for c in result["all_scores"]}

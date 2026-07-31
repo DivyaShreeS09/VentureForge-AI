@@ -44,6 +44,53 @@ def test_master_startup_knowledge_base_sprint_new_domains_resolve_distinctly():
     assert resolve_category("AgTech", None, [], "a precision farming tool for crop monitoring") == "agriculture"
 
 
+def test_classified_industry_wins_over_incidental_description_keyword():
+    """Final AI Quality Sprint, Phase 2: the pre-submission audit found a cybersecurity startup
+    whose own description mentioned "healthcare and legal" customers get Healthcare advice instead
+    of Cybersecurity. The venture's own already-classified industry/domain must always win over an
+    incidental keyword inside the free-text description."""
+    description = (
+        "An AI-driven phishing simulation and security-awareness training platform for SMBs, "
+        "already piloted with a few healthcare and legal services customers."
+    )
+    # Classified signal alone (no description) already says cybersecurity -> must win outright.
+    assert resolve_category("Cybersecurity", "b2b", [], description) == "cybersecurity"
+    # Even with only a coarse classified label, the description's OWN cybersecurity vocabulary
+    # (phishing, security-awareness) must outrank the incidental "healthcare" customer mention.
+    assert resolve_category(None, "b2b", [], description) == "cybersecurity"
+
+
+def test_specific_category_beats_generic_b2b_catch_all_even_when_b2b_is_the_classified_label():
+    """Classifying as "b2b" must never short-circuit resolution before the description is even
+    consulted — "b2b" is a last-resort catch-all, not a real signal."""
+    assert resolve_category("b2b", "b2b", [], "a contract review tool for law firms") == "legaltech"
+
+
+def test_confidence_ranking_prefers_more_matched_keywords_not_first_dict_entry():
+    """A description matching two categories must resolve to whichever has more real keyword
+    matches, not whichever appears first in the dict (previously: first-match-wins)."""
+    # "logistics" appears once ("logistics"); "healthcare" appears via a single incidental "health"
+    # substring but has fewer real matches than a description genuinely about logistics.
+    description = "A logistics platform optimizing fleet routes and last-mile delivery for health food distributors."
+    assert resolve_category(None, None, [], description) == "logistics"
+
+
+def test_coarse_industrials_label_does_not_hijack_a_more_specific_description():
+    """Regression: including `model_category_label` in the stage-1 "always wins" haystack let the
+    coarse classifier label "industrials" (which substring-matches hardware's "industrial" keyword)
+    pull a ClimateTech pitch into the hardware knowledge pack before its own much more specific
+    "carbon"/"emissions" description text was ever counted. `model_category_label` must only
+    contribute at the confidence-ranked (stage 2) level, same as the description."""
+    category = resolve_category(
+        "Sustainability Technology",
+        "industrials",
+        [],
+        "We sell carbon-accounting software that helps mid-market manufacturers track and report "
+        "their emissions for sustainability disclosures.",
+    )
+    assert category == "climatetech"
+
+
 def test_all_resolvable_categories_includes_generic_and_every_keyword_bucket():
     categories = all_resolvable_categories()
     assert "generic" in categories
