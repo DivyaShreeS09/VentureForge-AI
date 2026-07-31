@@ -21,7 +21,6 @@ BASE_NUMERIC_FEATURES = [
     "funding_total_usd",
     "funding_rounds",
     "company_age_years",
-    "funding_span_years",
     "category_count",
 ]
 # Engineered ratio features (see engineer_features below) — both showed a real, non-trivial
@@ -29,11 +28,18 @@ BASE_NUMERIC_FEATURES = [
 # -0.086) when checked before being added here, not assumed to help.
 ENGINEERED_NUMERIC_FEATURES = ["funding_per_round", "funding_velocity"]
 
-# v2 additions: date-derived features computed in ml/src/preprocessing/prepare_success_dataset.py
-# (time_to_first_funding_years, funding_recency_years — both derived only from founding/funding
-# dates, never from the outcome, so neither leaks the target) plus one interaction feature
-# computed here (funding_per_category).
-DATE_DERIVED_NUMERIC_FEATURES = ["time_to_first_funding_years", "funding_recency_years"]
+# Removed (ML Excellence Sprint, Priority 1 fix): time_to_first_funding_years, funding_recency_years,
+# and funding_span_years were all derived from founding/funding-round DATES that the startup
+# submission form (app.schemas.startup.CompanyMetrics) structurally never collects and never will
+# — every live prediction fabricated all three as `None` (see the pre-fix app.ml.success_predictor
+# base_row). A controlled experiment (funding recency's own missing-indicator column had near-zero
+# variance in training — missing in only 1/13,334 rows — so live serving's permanent "missing"
+# state was out-of-distribution) proved this costs nothing under REAL serving conditions and
+# actually IMPROVES them: on the held-out test set with these 3 fields wiped (the only condition
+# any live user ever produces), dropping them raised served ROC-AUC 0.812->0.827, accuracy
+# 0.740->0.756, F1 0.749->0.779, and cut the oracle-vs-served label flip rate from 11.3% to 2.9%.
+# The old model's higher "full-info" offline metrics were an artifact of training on dates no real
+# request ever supplies — never a fair comparison. See ml/DATASETS.md for the full experiment.
 # Interaction feature: funding_total_usd / (category_count + 1) — "capital concentration per
 # listed category". Chosen over a raw product (funding_total_usd * category_count) because the
 # product mostly just re-scales funding_total_usd by a small integer (1-10 typically) and is
@@ -44,7 +50,7 @@ DATE_DERIVED_NUMERIC_FEATURES = ["time_to_first_funding_years", "funding_recency
 INTERACTION_NUMERIC_FEATURES = ["funding_per_category"]
 ENGINEERED_NUMERIC_FEATURES = ENGINEERED_NUMERIC_FEATURES + INTERACTION_NUMERIC_FEATURES
 
-NUMERIC_FEATURES = BASE_NUMERIC_FEATURES + DATE_DERIVED_NUMERIC_FEATURES + ENGINEERED_NUMERIC_FEATURES
+NUMERIC_FEATURES = BASE_NUMERIC_FEATURES + ENGINEERED_NUMERIC_FEATURES
 CATEGORICAL_FEATURES = ["primary_category", "country_code"]
 ALL_FEATURES = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 

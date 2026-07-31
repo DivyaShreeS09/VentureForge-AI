@@ -9,8 +9,10 @@ from sklearn.metrics import (
     average_precision_score,
     balanced_accuracy_score,
     brier_score_loss,
+    cohen_kappa_score,
     confusion_matrix,
     f1_score,
+    matthews_corrcoef,
     precision_score,
     recall_score,
     roc_auc_score,
@@ -35,6 +37,10 @@ def evaluate_binary_classification(
         "f1": f1_score(y_true, y_pred, zero_division=0),
         "confusion_matrix": confusion_matrix(y_true, y_pred, labels=[0, 1]).tolist(),
         "confusion_matrix_labels": [0, 1],
+        # Chance-corrected agreement metrics — unlike accuracy, both are 0 for a chance-level
+        # classifier regardless of class balance, so they're a useful cross-check alongside F1.
+        "mcc": float(matthews_corrcoef(y_true, y_pred)),
+        "cohen_kappa": float(cohen_kappa_score(y_true, y_pred)),
     }
 
     if y_proba is not None and len(set(y_true)) == 2:

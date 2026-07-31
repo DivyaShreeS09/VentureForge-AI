@@ -54,6 +54,13 @@ ml/models/industry_classifier/*.json
 !ml/models/success_predictor/v1
 !ml/models/success_predictor/v1/**
 ml/models/success_predictor/_smoke_test
+# Priority 2 fix (ML Excellence Sprint): the customer-segmentation clustering artifact was fully
+# implemented but never trained/committed, so every real request silently degraded to
+# "unavailable" — see app/ml/segmentation.py. Trained for real on the licensed UCI Online Retail
+# dataset (CC BY 4.0) and committed so this genuinely activates for any caller that supplies
+# customer_rfm (already supported by the schema; no frontend change needed or made).
+!ml/models/customer_segmentation
+!ml/models/customer_segmentation/**
 
 # Kaggle credentials — never read from or committed to this repo (see scripts/download_datasets.py)
 kaggle.json

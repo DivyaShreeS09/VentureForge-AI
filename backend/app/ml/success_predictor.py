@@ -121,18 +121,16 @@ def predict_success(
     if not country_code:
         missing_features.append("country_code")
 
+    # v3 fix (ML Excellence Sprint, Priority 1): funding_span_years / time_to_first_funding_years /
+    # funding_recency_years were removed from the trained feature set entirely — this endpoint
+    # never had real dates to supply for them (CompanyMetrics collects no funding-round dates),
+    # and a controlled experiment proved training on those permanently-fabricated fields degraded
+    # real serving-condition accuracy relative to a model that never expects them. See
+    # ml/src/features/success_features.py for the full experiment writeup.
     base_row = {
         "funding_total_usd": total_funding_usd,
         "funding_rounds": funding_rounds,
         "company_age_years": company_age_years,
-        "funding_span_years": None,
-        # time_to_first_funding_years / funding_recency_years (v2 features — see
-        # ml/src/features/success_features.py) require first_funding_at/last_funding_at
-        # dates that the startup submission form does not collect. Left as missing (None)
-        # and imputed by the trained pipeline like any other absent numeric feature,
-        # rather than fabricating a date this endpoint was never given.
-        "time_to_first_funding_years": None,
-        "funding_recency_years": None,
         "primary_category": (industry or "unknown").lower(),
         "category_count": 1,
         "country_code": (country_code or "unknown").lower(),

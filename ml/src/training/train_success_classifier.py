@@ -75,6 +75,13 @@ from sklearn.model_selection import (
 )
 from sklearn.pipeline import Pipeline
 
+try:
+    from xgboost import XGBClassifier
+
+    _XGBOOST_AVAILABLE = True
+except ImportError:
+    _XGBOOST_AVAILABLE = False
+
 from ml.src.evaluation.binary_classification_metrics import (
     check_no_leakage,
     evaluate_binary_classification,
@@ -141,6 +148,13 @@ _SEARCH_SPACE: dict[str, dict[str, list]] = {
         "clf__learning_rate": [0.01, 0.03, 0.1, 0.2],
         "clf__l2_regularization": [0.0, 0.1, 1.0],
     },
+    "xgboost": {
+        "clf__n_estimators": [100, 200, 300],
+        "clf__max_depth": [3, 4, 6, 8],
+        "clf__learning_rate": [0.01, 0.03, 0.1, 0.2],
+        "clf__min_child_weight": [1, 3, 5],
+        "clf__subsample": [0.7, 0.85, 1.0],
+    },
 }
 
 
@@ -203,6 +217,29 @@ def _candidate_pipelines() -> dict[str, Pipeline]:
             ]
         ),
     }
+    # v2 candidate: XGBoost, evaluated honestly alongside the other gradient-boosting family
+    # members (gradient_boosting, hist_gradient_boosting) via the same CV scheme — only adopted
+    # if it demonstrably beats every other candidate here, not assumed superior because it's a
+    # more well-known library. Skipped entirely if xgboost isn't installed, so training never
+    # hard-fails on an optional dependency.
+    if _XGBOOST_AVAILABLE:
+        pipelines["xgboost"] = Pipeline(
+            [
+                ("preprocess", build_preprocessor()),
+                (
+                    "clf",
+                    XGBClassifier(
+                        n_estimators=300,
+                        max_depth=6,
+                        learning_rate=0.1,
+                        random_state=SEED,
+                        n_jobs=1,
+                        tree_method="hist",
+                        eval_metric="logloss",
+                    ),
+                ),
+            ]
+        )
     # v2 candidate: soft-voting ensemble of the two algorithm families that traditionally score
     # highest on this dataset (logreg + hist_gradient_boosting, per the v1 comparison in
     # ml/DATASETS.md). Only adopted as the final selection if its CV ROC-AUC beats every single
