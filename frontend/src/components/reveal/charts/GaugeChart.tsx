@@ -22,7 +22,10 @@ interface Props {
  * solid stroke. Renders instantly (no animation) under `prefers-reduced-motion`. */
 export function GaugeChart({ value, label, caption, color = "#8b5cf6" }: Props) {
   const prefersReduced = useReducedMotion();
-  const clamped = Math.max(0, Math.min(100, value));
+  // Guard against NaN/undefined upstream scores propagating through Math.max/min unclamped —
+  // a raw NaN would otherwise render the literal text "NaN" to a founder (Priority 4 fix, ML
+  // Excellence Sprint final audit). Falls back to 0 rather than fabricating a plausible number.
+  const clamped = Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
   const gradientId = `gauge-gradient-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const data = [{ name: label, value: clamped, fill: `url(#${gradientId})` }];
 

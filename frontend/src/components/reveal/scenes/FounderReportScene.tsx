@@ -501,7 +501,9 @@ function AppendixContent({ appendix }: { appendix: FounderReportAppendix }) {
             <p className="text-forge-2 font-medium text-forge-text">Retrieved similar ventures used</p>
             <ul role="list" className="mt-2 space-y-1 text-forge-2 text-forge-text-secondary">
               {appendix.startup_benchmark.retrieved_ventures_used.map((v, i) => (
-                <li key={i}>{v.name} ({v.industry}, similarity {v.similarity.toFixed(2)})</li>
+                <li key={i}>
+                  {v.name} ({v.industry}, similarity {Number.isFinite(v.similarity) ? v.similarity.toFixed(2) : "0.00"})
+                </li>
               ))}
             </ul>
           </div>

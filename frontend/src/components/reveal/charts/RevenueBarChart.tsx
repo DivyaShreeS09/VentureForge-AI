@@ -7,9 +7,16 @@ interface Props {
 }
 
 function formatUsd(v: number): string {
+  // Guard against a non-finite value (NaN/undefined coerced to NaN) rendering "$NaN" — Priority 4
+  // fix, ML Excellence Sprint final audit.
+  if (!Number.isFinite(v)) return "$0";
   if (v >= 1_000_000) return `$${(v / 1_000_000).toFixed(1)}M`;
   if (v >= 1_000) return `$${Math.round(v / 1_000)}K`;
   return `$${Math.round(v)}`;
+}
+
+function safeRevenue(v: number): number {
+  return Number.isFinite(v) ? v : 0;
 }
 
 /** The 3 real revenue scenarios (`revenue_estimate.scenarios.{conservative,base,optimistic}`) as
@@ -19,9 +26,9 @@ function formatUsd(v: number): string {
 export function RevenueBarChart({ scenarios }: Props) {
   const prefersReduced = useReducedMotion();
   const data = [
-    { name: "Conservative", revenue: scenarios.conservative.annual_revenue_usd },
-    { name: "Base", revenue: scenarios.base.annual_revenue_usd },
-    { name: "Optimistic", revenue: scenarios.optimistic.annual_revenue_usd },
+    { name: "Conservative", revenue: safeRevenue(scenarios.conservative.annual_revenue_usd) },
+    { name: "Base", revenue: safeRevenue(scenarios.base.annual_revenue_usd) },
+    { name: "Optimistic", revenue: safeRevenue(scenarios.optimistic.annual_revenue_usd) },
   ];
 
   return (

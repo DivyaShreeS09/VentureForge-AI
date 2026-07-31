@@ -8,6 +8,7 @@ import { RootErrorBoundary } from "./app/RootErrorBoundary";
 import { SceneTransition } from "./motion/SceneTransition";
 import { useTransitionTier } from "./motion/act";
 import { ThresholdPage } from "./pages/ThresholdPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 
 // Route-level code splitting: ThresholdPage (the landing page every visitor hits first) stays in
 // the main bundle; every other page — especially AnalysisResultPage, which pulls in all 8 Reveal
@@ -83,6 +84,14 @@ function AppRoutes() {
             element={
               <BareLayout>
                 <HistoryPage />
+              </BareLayout>
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <BareLayout>
+                <NotFoundPage />
               </BareLayout>
             }
           />

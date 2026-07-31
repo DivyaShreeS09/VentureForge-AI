@@ -14,10 +14,12 @@ interface Props {
  * silently omitted, so the shape always reflects all 8 dimensions consistently. */
 export function FundingRadarChart({ breakdown }: Props) {
   const prefersReduced = useReducedMotion();
-  const data = breakdown.map((item) => ({
-    label: item.label,
-    score: item.raw_score === null ? 0 : Math.round((item.raw_score / item.max_score) * 100),
-  }));
+  const data = breakdown.map((item) => {
+    const ratio = item.raw_score === null ? 0 : (item.raw_score / item.max_score) * 100;
+    // Guard against a non-finite ratio (e.g. max_score somehow 0) rendering "NaN" on the chart —
+    // Priority 4 fix, ML Excellence Sprint final audit.
+    return { label: item.label, score: Number.isFinite(ratio) ? Math.round(ratio) : 0 };
+  });
 
   return (
     <div style={{ width: "100%", height: 280 }}>

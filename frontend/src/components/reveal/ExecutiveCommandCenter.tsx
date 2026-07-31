@@ -31,7 +31,12 @@ export function ExecutiveCommandCenter({ analysis, mentor, startupName, insights
   const tone = DECISION_TONE[decision.label] ?? "text-forge-text";
   const industry = analysis.industry_prediction?.primary_industry ?? analysis.industry_prediction?.predicted_industry ?? null;
   const stage = mentor.founder_report?.executive_verdict.current_stage.content ?? null;
-  const successPct = analysis.success_prediction ? Math.round(analysis.success_prediction.success_probability * 100) : null;
+  // Number.isFinite guard: a non-finite success_probability would otherwise render "NaN%" to a
+  // founder (Priority 4 fix, ML Excellence Sprint final audit) — treated the same as absent.
+  const rawSuccessPct = analysis.success_prediction
+    ? Math.round(analysis.success_prediction.success_probability * 100)
+    : null;
+  const successPct = rawSuccessPct !== null && Number.isFinite(rawSuccessPct) ? rawSuccessPct : null;
   const fundingScore = analysis.funding_assessment?.overall_score ?? null;
 
   const strength = findInsight(insights, "insight-biggest-strength");

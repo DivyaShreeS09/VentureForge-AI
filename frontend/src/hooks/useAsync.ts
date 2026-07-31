@@ -23,7 +23,12 @@ export function useAsync<T, Args extends unknown[]>(fn: (...args: Args) => Promi
         setState({ data, loading: false, error: null, errorStatus: null });
         return data;
       } catch (err) {
-        const message = err instanceof ApiError ? String(err.detail ?? err.message) : "Unexpected error";
+        // err.detail is `unknown` — FastAPI's automatic 422 validation responses send it as an
+        // array of Pydantic error objects, not a string, which `String(...)` would otherwise
+        // stringify to the literal text "[object Object]". Only trust `detail` when it's really
+        // a string; ApiError's own constructor already computed a safe message otherwise.
+        const message =
+          err instanceof ApiError ? (typeof err.detail === "string" ? err.detail : err.message) : "Unexpected error";
         const errorStatus = err instanceof ApiError ? err.status : null;
         setState({ data: null, loading: false, error: message, errorStatus });
         return null;

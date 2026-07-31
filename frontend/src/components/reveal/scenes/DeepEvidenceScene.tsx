@@ -2,6 +2,12 @@ import type { Analysis } from "../../../types/api";
 import { CollapsedScene } from "../CollapsedScene";
 import { WorkflowTrace } from "../WorkflowTrace";
 
+// Guard against a non-finite confidence rendering "NaN%" — Priority 4 fix, ML Excellence Sprint
+// final audit.
+function formatConfidencePct(confidence: number): string {
+  return Number.isFinite(confidence) ? (confidence * 100).toFixed(0) : "0";
+}
+
 /** Scene 7 — Deep Evidence. Only for founders who want proof: workflow trace, evidence, readiness
  * detail, methodology, historical comparison, model explanations. Consolidates what used to be 6
  * scattered disclaimers plus the never-rendered `evidence_and_uncertainty` and correction-history
@@ -33,7 +39,7 @@ export function DeepEvidenceScene({ analysis }: { analysis: Analysis }) {
           <div>
             <p className="font-medium text-forge-text">Industry Classification</p>
             <p className="mt-1.5">
-              {industry_prediction.predicted_industry} — {(industry_prediction.confidence * 100).toFixed(0)}% confidence,
+              {industry_prediction.predicted_industry} — {formatConfidencePct(industry_prediction.confidence)}% confidence,
               model {industry_prediction.model_version}
             </p>
             {industry_prediction.is_uncertain && (
@@ -43,7 +49,7 @@ export function DeepEvidenceScene({ analysis }: { analysis: Analysis }) {
             )}
             {industry_prediction.alternatives.length > 0 && (
               <p className="mt-1 text-forge-1 text-forge-text-secondary">
-                Other signals: {industry_prediction.alternatives.map((a) => `${a.industry} (${(a.confidence * 100).toFixed(0)}%)`).join(", ")}
+                Other signals: {industry_prediction.alternatives.map((a) => `${a.industry} (${formatConfidencePct(a.confidence)}%)`).join(", ")}
               </p>
             )}
           </div>

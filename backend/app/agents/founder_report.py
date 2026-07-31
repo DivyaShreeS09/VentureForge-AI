@@ -65,6 +65,15 @@ def _tag(content, category: str) -> dict:
     return {"content": content, "category": category}
 
 
+def _format_period_label(period: str) -> str:
+    """"days_1_30" -> "Days 1–30". A blind `.replace('_', '–').replace('days', 'Days ')` (the
+    previous implementation) turned the underscore between "days" and "1" into a dash too,
+    rendering every report as "Days –1–30" — found during the pre-submission audit, reproducible
+    in all 10 test reports since every analysis produces this same roadmap field."""
+    _, start, end = period.split("_")
+    return f"Days {start}–{end}"
+
+
 def _build_executive_verdict(
     startup_name: str,
     idea_understanding: dict,
@@ -464,7 +473,7 @@ def _build_appendix(
                 comparative_pattern_summary.append(_tag(f"{dim.replace('_', ' ').title()}: {note}", "evidence"))
 
     action_plan = [
-        _tag(f"{period['period'].replace('_', '–').replace('days', 'Days ')}: {period['focus']}", "ai_recommendation")
+        _tag(f"{_format_period_label(period['period'])}: {period['focus']}", "ai_recommendation")
         for period in mentor.get("roadmap_30_60_90", [])
     ]
 
