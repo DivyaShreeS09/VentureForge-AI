@@ -8,6 +8,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.agents.idea_expansion import build_deterministic_idea_expansion
@@ -171,11 +173,25 @@ def start_analysis_for_startup(db: Session, startup: Startup, session_factory: s
     real node completes instead of only once at the end. This is what lets the frontend show
     genuine, real intermediate progress instead of one long blocking call followed by an
     all-at-once reveal.
+
+    Idempotent under concurrent/rapid-repeat calls (Priority 3 fix, ML Excellence Sprint): a
+    partial unique index (`ux_analyses_one_running_per_startup`, migration 0011) allows only one
+    `status='RUNNING'` row per startup at the database level. A double-click on "Analyze" that
+    races this insert gets an `IntegrityError` here rather than a second concurrent background
+    thread — in that case we roll back and return the already-in-flight analysis instead of
+    erroring, so a rapid repeat click is harmless rather than a 500.
     """
     now = datetime.now(timezone.utc)
     analysis = Analysis(startup_id=startup.id, status="RUNNING", created_at=now, updated_at=now)
     db.add(analysis)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        existing = db.execute(
+            select(Analysis).where(Analysis.startup_id == startup.id, Analysis.status == "RUNNING")
+        ).scalar_one()
+        return existing
     db.refresh(analysis)
 
     thread = threading.Thread(
