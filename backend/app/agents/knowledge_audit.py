@@ -25,7 +25,7 @@ from, not what epistemic status it claims:
 
 from __future__ import annotations
 
-from app.agents.consistency_audit import _collect_tagged_items, _GENERIC_PHRASES
+from app.agents.consistency_audit import _collect_tagged_items
 from app.agents.industry_knowledge_packs import supported_categories
 from app.agents.venture_vocabulary import all_resolvable_categories
 

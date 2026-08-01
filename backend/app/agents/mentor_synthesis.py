@@ -511,7 +511,6 @@ def _build_pilot_roadmap(
         }
 
     target_user = mvp_recommendation.get("target_user", "your first target user")
-    problem = mvp_recommendation.get("single_core_problem", "the core problem")
     workflow = mvp_recommendation.get("minimum_workflow", "the minimum workflow")
     metric = mvp_recommendation.get("success_metric", "one clear usage or willingness-to-pay signal")
     validation_methods = [v["method"] for v in validation_plan[:2]]

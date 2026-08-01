@@ -39,7 +39,7 @@ import re
 
 from app.ai.base import LLMUnavailable
 from app.ai.factory import get_llm_provider
-from app.ai.schemas import _CITATION_CLAIM_PATTERN, GeminiMentorAdvice, GeminiMentorAdviceItem, MentorContext
+from app.ai.schemas import _CITATION_CLAIM_PATTERN, GeminiMentorAdvice, MentorContext
 
 logger = logging.getLogger(__name__)
 
