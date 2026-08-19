@@ -1,0 +1,243 @@
+{
+  "datasets": [
+    {
+      "name": "uci-online-retail",
+      "source": "uci_machine_learning_repository",
+      "url": "https://archive.ics.uci.edu/dataset/352/online+retail",
+      "path": "ml/data/raw/online_retail.xlsx",
+      "task": "customer_segmentation_research",
+      "status": "approved_for_offline_evaluation_only",
+      "license": "CC BY 4.0",
+      "notes": "541,909 UK online-retail transactions (2010-12-01 to 2011-12-09); schema InvoiceNo, StockCode, Description, Quantity, InvoiceDate, UnitPrice, CustomerID, Country. Used only to compare RFM clustering methods offline (Phase 5 / Student 3). Raw data and artifacts are not committed. Its customer-level RFM fields are not collected by VentureForge by default, so it is not used to fabricate runtime assignments."
+    },
+    {
+      "name": "startup-industry-bootstrap",
+      "source": "generated",
+      "kaggle_id": null,
+      "path": "ml/src/preprocessing/bootstrap_data.py",
+      "task": "industry_classification",
+      "status": "approved_for_bootstrap_only",
+      "notes": "Deterministically generated (fixed seed) by ml/src/preprocessing/bootstrap_data.py from template phrase pools authored by Student 1, to bootstrap and unit-test the industry classification pipeline end to end. Not representative of the real-world label distribution or company diversity. Must be replaced or substantially augmented with a real, schema-inspected corpus before any production accuracy claim is made."
+    },
+    {
+      "name": "yc-companies-2012-2024",
+      "source": "kaggle",
+      "kaggle_id": "ibrahimqasimi/y-combinator-companies-2012-2024",
+      "path": "ml/data/raw/yc_companies_2012_2024_raw.csv",
+      "task": "industry_classification",
+      "status": "approved",
+      "license": "CC BY 4.0 (Attribution 4.0 International)",
+      "notes": "4,522 real Y Combinator-backed companies, 26 batches (W12-W24, 2012-2024), columns include name/one_liner/long_description/industry/subindustry/status. Schema-inspected: 9 raw industry labels; 'unspecified' (19 rows, not a real label) and 'government' (32 rows, below the 50-row minimum for reliable stratified 5-fold CV) excluded per ml/src/preprocessing/prepare_yc_dataset.py, leaving 7 classes. B2B is the dominant class (~50%), reflecting YC's actual portfolio composition, not a data defect; mitigated with class_weight='balanced' in every candidate model, not by fabricating balance. Transform script: ml/src/preprocessing/prepare_yc_dataset.py. Full schema profile in ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-company-classification-scrape",
+      "source": "kaggle",
+      "kaggle_id": "charanpuvvala/company-classification",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "73,974 rows, 13 well-balanced classes, real scraped homepage text \u00e2\u20ac\u201d schema was strong, but the dataset's Kaggle license field is 'unknown' (no license specified by the publisher). Rejected on licensing grounds, not schema quality: redistribution/training rights are not established. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-crunchbase-startup-outcomes",
+      "source": "kaggle",
+      "kaggle_id": "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "66,368 rows, CDLA-Sharing-1.0 license (acceptable), but no free-text description column exists (only name + multi-label category_list + funding metadata) \u00e2\u20ac\u201d not usable for a name+description text classifier. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-startup-success-prediction",
+      "source": "kaggle",
+      "kaggle_id": "manishkc06/startup-success-prediction",
+      "path": null,
+      "task": "funding_readiness",
+      "status": "rejected",
+      "notes": "923 rows of structured Crunchbase-derived features (funding rounds, milestones, relationships) with a binary acquired/closed outcome. No free-text input, small n, and the outcome is confounded by company age and survivorship bias \u00e2\u20ac\u201d not a defensible funding-readiness target. This is a Student 2 'success prediction' dataset shape, not Student 1 scope. See ml/DATASETS.md."
+    },
+    {
+      "name": "kaggle-funding-outcomes",
+      "source": "kaggle",
+      "kaggle_id": null,
+      "path": "ml/data/raw/kaggle_funding_outcomes.csv",
+      "task": "funding_readiness",
+      "status": "rejected",
+      "notes": "No supervised funding-readiness dataset with a defensible target, sufficient observations, form-available features, and leakage-free labeling was identified. See ml/DATASETS.md. Funding readiness is implemented as a transparent deterministic rubric instead (see backend/app/ml/funding_readiness.py)."
+    },
+    {
+      "name": "crunchbase-startup-success-outcomes",
+      "source": "kaggle",
+      "kaggle_id": "yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase",
+      "path": "ml/data/raw/startup_success_raw.csv",
+      "task": "success_prediction",
+      "status": "approved",
+      "license": "Community Data License Agreement - Sharing 1.0 (acceptable)",
+      "notes": "66,368 real Crunchbase-derived company records; 13,334 rows have a resolved historical outcome (acquired 5,549 + ipo 1,547 = success; closed 6,238 = failure) and are used for training. The 53,034 'operating' rows are excluded as unresolved, not labeled as failure. Transform script: ml/src/preprocessing/prepare_success_dataset.py. Full schema profile, model comparison, and metrics in ml/DATASETS.md."
+    },
+    {
+      "name": "startup-success-prediction-alternative",
+      "source": "kaggle",
+      "kaggle_id": "manishkc06/startup-success-prediction",
+      "path": null,
+      "task": "success_prediction",
+      "status": "inspected_not_selected",
+      "license": "CC0-1.0",
+      "notes": "923 rows, real Crunchbase-derived data, same acquired/closed binary target shape as the approved dataset above. Not rejected on quality grounds \u00e2\u20ac\u201d simply superseded by the 66,368-row Crunchbase dataset (14x more resolved-outcome rows) for the same task. See ml/DATASETS.md."
+    },
+    {
+      "name": "global-startup-success-dataset-synthetic",
+      "source": "kaggle",
+      "kaggle_id": "hamnakaleemds/global-startup-success-dataset",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "5,000 rows, Apache-2.0, but no data-provenance statement and an undefined 'Success Score 1-10 based on growth' field that reads as an arbitrary generated label rather than an observed outcome. See ml/DATASETS.md."
+    },
+    {
+      "name": "startup-funding-outcome-simulated",
+      "source": "kaggle",
+      "kaggle_id": "dhrubangtalukdar/startup-funding-and-outcome-dataset",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "100,000 rows, Apache-2.0, but the publisher's own metadata states userSpecifiedSources='Synthetic' ('Simulated startup data'). Also inspected and rejected for revenue_estimation for the same reason. See ml/DATASETS.md."
+    },
+    {
+      "name": "startup-growth-funding-trends-synthetic",
+      "source": "kaggle",
+      "kaggle_id": "samayashar/startup-growth-and-funding-trends",
+      "path": null,
+      "task": "success_prediction",
+      "status": "rejected",
+      "notes": "CC0-1.0, but the publisher's own metadata states the dataset is 'synthetically generated based on real-world startup funding and growth patterns' \u00e2\u20ac\u201d not real observed data. Also inspected and rejected for revenue_estimation for the same reason. See ml/DATASETS.md."
+    },
+    {
+      "name": "financial-metrics-50-startups-toy",
+      "source": "kaggle",
+      "kaggle_id": "ara001/financial-metrics-of-startup-companies",
+      "path": null,
+      "task": "revenue_estimation",
+      "status": "rejected",
+      "notes": "The well-known '50 Startups' classroom regression dataset (50 rows). Extremely tiny toy dataset; R&D/Administration/Marketing spend -> Profit has no relationship to this system's founder-pitch input fields. See ml/DATASETS.md.",
+      "license": "Apache-2.0"
+    },
+    {
+      "name": "revenue-scenario-calculator",
+      "source": "deterministic",
+      "kaggle_id": null,
+      "path": "backend/app/ml/revenue_scenario.py",
+      "task": "revenue_estimation",
+      "status": "approved_as_deterministic_engine",
+      "notes": "No real, licensed, non-synthetic dataset tying startup revenue to founder-pitch-available features was found (see the rejected entries above, task=revenue_estimation, plus the two success_prediction synthetic rejections which were also evaluated for this task). Implemented as a transparent, versioned, user-assumption-driven scenario calculator instead of a trained model, mirroring the precedent set by backend/app/ml/funding_readiness.py. See ml/DATASETS.md 'Revenue Estimation \u00e2\u20ac\u201d Dataset Decision'."
+    },
+    {
+      "name": "yc-subindustry-finegrained-taxonomy",
+      "source": "kaggle",
+      "kaggle_id": "ibrahimqasimi/y-combinator-companies-2012-2024",
+      "path": "ml/data/raw/yc_companies_2012_2024_raw.csv",
+      "task": "industry_classification",
+      "status": "evaluated_and_rejected",
+      "notes": "Same approved raw file already in use for the 7-class production taxonomy also contains a real, non-fabricated subindustry column (58 raw hierarchical values, e.g. \"Healthcare -> Diagnostics\"). Applying the existing MIN_CLASS_SAMPLES=50 rule yields 34 classes / 3,755 rows -- squarely in the Final ML Excellence Sprint requested 30-60 class range. Evaluated with the already-proven word+char TF-IDF + balanced LogReg architecture: CV macro-F1 0.440 (vs 0.738 for the deployed 7-class model), gold-set macro-F1 0.261 (vs 0.766), mean top-1 confidence 0.186 (barely above 34-way chance 0.029). REJECTED -- not deployed, no backend wiring. See ml/DATASETS.md \"Fine-Grained Subindustry Taxonomy -- Evaluated and Rejected\" and ml/src/preprocessing/subindustry_taxonomy_experiment.py."
+    },
+    {
+      "name": "yc-companies-2025",
+      "source": "kaggle",
+      "kaggle_id": "mohamedasak/y-combinator-startup-directory-2025",
+      "path": "ml/data/raw/yc_companies_2025_raw.csv",
+      "task": "industry_classification",
+      "status": "evaluated_not_deployed",
+      "notes": "629 real YC-backed companies from the 2025 batches (Summer/Winter/Fall/Spring), Apache-2.0, zero-overlap period with the existing 2012-2024 export, same 8-value industry taxonomy. Merged into ml/data/raw/industry_dataset_expanded.csv via ml/src/preprocessing/prepare_yc_expanded_dataset.py and benchmarked against production v2: CV/test macro-F1 flat-to-slightly-worse, gold-set accuracy/macro-F1 improved (+0.029/+0.028) but not statistically significant at n=140, real-estate-and-construction class regressed (F1 -0.095). Deployment REJECTED per this project's all-criteria bar. See ml/DATASETS.md \"Dataset Expansion Sprint\"."
+    },
+    {
+      "name": "startup-one-line-pitches-synthetic-2025",
+      "source": "kaggle",
+      "kaggle_id": "pratyushpuri/startup-companies-one-line-pitches-2025",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "CC0-1.0, but the publisher's own description states this is \"A structured synthetic dataset\" with nulls simulated for realism. Not real company data -- rejected regardless of the permissive license. See ml/DATASETS.md."
+    },
+    {
+      "name": "startup-failures-cbinsights",
+      "source": "kaggle",
+      "kaggle_id": "dagloxkankwanda/startup-failures",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "483 real companies (CB Insights Startup Failure Post-Mortem), but licensed Attribution-NonCommercial 4.0 (CC BY-NC 4.0) -- a real legal-risk rejection, same class of reasoning as prior unknown-license rejections. See ml/DATASETS.md."
+    },
+    {
+      "name": "indian-companies-3000",
+      "source": "kaggle",
+      "kaggle_id": "shubhamoujlayan/list-of-3000-indian-companies",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "3,217 real companies, CC0-1.0, but no free-text description column -- only Glassdoor-style metadata (rating, reviews, employee count). Not usable for a text classifier, same reason as the earlier Crunchbase-scrape rejection. See ml/DATASETS.md."
+    },
+    {
+      "name": "yc-full-directory-2005-2026",
+      "source": "kaggle",
+      "kaggle_id": "alibekmamyrbay/y-combinator-startups-full-directory-20052026",
+      "path": "ml/data/raw/yc_companies_full_directory_2005_2026_raw.csv",
+      "task": "industry_classification",
+      "status": "adopted_for_measurement_not_retrained",
+      "notes": "5,884 real YC companies, every batch Summer 2005 - Spring 2026, scraped 2026-05-07, CC-BY-SA-4.0. Richest schema of all candidates evaluated (separate industry/subindustry columns, one_liner+long_description, plus status/outcome/stage/team_size/geography). 998/5,884 have no matching company name in the two already-adopted sources, concentrated in three genuinely new coverage windows: 2005-2011 (309 rows, entirely new era), 2018-2023 (157 rows, gaps in the existing 2012-2024 export), 2026 (317 rows, post-dates every existing source). Name-based comparison alone is unreliable (3.5% of name-matched rows carry a different industry label -- verified to be different real companies sharing a common short name, e.g. Blink/Spade/Atlas, the same phenomenon already documented in this project's duplicate-name audits, not a data-quality bug) so the actual merge dedupes on exact description text: 3-source merge (ml/src/preprocessing/prepare_yc_full_directory_merge.py) yields 7,367 rows post-cleaning / 7,227 after gold-exclusion, a genuine +67% increase over the 4,298-row production pool. NOT retrained onto any model this sprint per explicit instruction -- see ml/DATASETS.md \"ML Data Acquisition & Corpus Expansion Sprint\" for the full audit and the license (share-alike) consideration."
+    },
+    {
+      "name": "yc-complete-dataset-supremesun",
+      "source": "kaggle",
+      "kaggle_id": "supremesun/complete-ycombinator-dataset-from-2005-2024",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected_redundant",
+      "notes": "4,974 rows, MIT license (more permissive than the adopted alternative), but same underlying public YC directory re-scraped with a messier schema (industry field is a single comma-joined string mixing top-level and sub-level categories, e.g. \"Industrials,Aviation and Space\", rather than separate clean columns) and fewer rows than alibekmamyrbay's full-directory export covering the same population. Redundant with an already-adopted, higher-quality source -- not merged."
+    },
+    {
+      "name": "yc-directory-yuhesh",
+      "source": "kaggle",
+      "kaggle_id": "yuhesh/y-combinator-directory-2005-2026",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected_redundant",
+      "notes": "5,785 rows, CC0-1.0 (the safest license of the three full-directory candidates), same underlying public YC population as the adopted source, but \"Company Description\" is one-liner-only with no long-form description field -- thinner text than the adopted alternative's one_liner+long_description pairing. Redundant population, weaker text register -- not merged."
+    },
+    {
+      "name": "startup-names-descriptions-devastator",
+      "source": "kaggle",
+      "kaggle_id": "thedevastator/startup-names-and-descriptions-dataset",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "42,038 real startup names/taglines/descriptions (likely an AngelList-era scrape via data.world), by far the largest text corpus found this pass -- but NO industry label column at all, so it cannot extend the supervised industry classifier without fabricating labels. License is self-declared \"other\" (unclear terms), a further reason not to adopt for this task. Noted as a candidate for a future venture-retrieval/embedding-corpus expansion (a different task, out of scope this sprint), not for industry classification."
+    },
+    {
+      "name": "linkedin-us-company-profiles-proxycurl",
+      "source": "kaggle",
+      "kaggle_id": "proxycurl/10000-us-company-profiles",
+      "path": null,
+      "task": "industry_classification",
+      "status": "rejected",
+      "notes": "Real company profiles, but sourced from a commercial LinkedIn-scraping data-enrichment vendor (Proxycurl) -- LinkedIn's own terms of service prohibit unauthorized scraping/redistribution, making the redistribution/training-rights chain legally unclear regardless of the Kaggle-listed license. Rejected on the same legal-risk grounds as other unclear-provenance rejections in this project."
+    },
+    {
+      "name": "industry-classifier-v3-deployment",
+      "source": "derived",
+      "kaggle_id": null,
+      "path": "ml/data/raw/industry_dataset_expanded_v2.csv",
+      "task": "industry_classification",
+      "status": "deployed",
+      "notes": "Production industry classifier upgraded from v2 (4,298 rows, single YC 2012-2024 source) to v3 (7,227 rows, 3-source merge) after a real head-to-head benchmark using the unchanged tfidf_word_char_logreg architecture: CV macro-F1 0.738->0.775 (tighter variance), gold-set accuracy/macro-F1/MCC/Kappa/top-2 all improved, ECE 0.201->0.137 (materially better calibration). McNemar test on the paired gold set was not statistically significant alone (p=0.625, n=140) but never negative, and CV variance tightening from more data was the deciding evidence. One test-set-only per-class dip (fintech) did not replicate on the gold set and was attributed to split-composition variance, not a real regression. See ml/DATASETS.md \"ML Dataset Expansion Evaluation Sprint\". v2 artifact retained on disk unchanged for audit trail."
+    },
+    {
+      "name": "mpnet-partial-finetune-experiment",
+      "source": "huggingface",
+      "kaggle_id": null,
+      "path": "ml/models/industry_classifier/mpnet_partial_finetune_result.json",
+      "task": "industry_classification",
+      "status": "evaluated_and_rejected",
+      "notes": "Feasibility evaluation for replacing the TF-IDF+LogReg classifier with a fine-tuned transformer. Full fine-tuning of any candidate in this size range (ModernBERT-base 149M, MPNet-base 109.5M, DistilBERT 66.4M as smallest reference) was empirically proven infeasible on this ~1.2-2.5GB-free, CPU-only, no-GPU machine -- a real training loop segfaulted (exit 139) after 1 step even for the smallest candidate. A memory-feasible partial fine-tune (freeze all but the last encoder layer + classifier head, ~7% trainable) was implemented for microsoft/mpnet-base using the exact same train/test/gold split and class-weighting as v3, trained 1 epoch (44.7 min, real time cost ~60min/epoch on this hardware). Result: v3 clearly outperforms on the held-out test set (n=1,446) on every metric (macro-F1 0.769 vs 0.717, accuracy 0.793 vs 0.753) and every per-class F1; gold set (n=140) was a near-tie/slight MPNet edge but is the much smaller, less reliable surface. REJECTED per the explicit \"deploy only if it clearly outperforms\" criterion -- v3 remains deployed, no backend changes. See ml/DATASETS.md \"Transformer Fine-Tuning Feasibility Evaluation\"."
+    }
+  ]
+}

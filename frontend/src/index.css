@@ -1,0 +1,206 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+
+  /* Centralized design tokens, derived directly from the finalized VentureForgeAI logo.
+     Tailwind utility classes (bg-void-950, text-signal-400, etc.) are the primary way components
+     consume these; these raw custom properties exist for the few places that need a literal color
+     value outside Tailwind's class system (canvas particle rendering, inline SVG gradients). */
+  --vf-bg: #030308;
+  --vf-surface: #090910;
+  --vf-surface-elevated: #11111a;
+  --vf-border: rgba(245, 247, 255, 0.1);
+
+  --vf-violet: #7c2cff;
+  --vf-violet-bright: #a445ff;
+  --vf-violet-deep: #3f0d8a;
+  --vf-blue: #168bff;
+  --vf-cyan: #20c7ff;
+  --vf-gold: #ff9d1c;
+  --vf-gold-bright: #ffd166;
+  --vf-gold-shadow: #8a4a00;
+
+  --vf-text: #f5f7ff;
+  --vf-text-secondary: #aeb5c8;
+  --vf-text-muted: #70788d;
+
+  --vf-success: #23d18b;
+  --vf-warning: #f5b942;
+  --vf-danger: #ff5a6b;
+
+  /* -------------------------------------------------------------------------------
+     Cosmic Command-Center tokens (namespaced --forge-*) — one premium dark theme,
+     intentionally the only theme (no light variant). Roles are deliberate, not a
+     free-for-all: accent (amber gold -> orange energy) is the one CTA/energy color;
+     accent-2 (electric purple) is the structural/glass/glow accent (card borders,
+     focus glows) — never used for starfield particles; accent-3 (soft cyan) is a rare
+     tertiary highlight, same rule; accent-2-deep (royal violet) and
+     magenta-decorative (neon magenta) are glass/glow decoration only — confirmed via
+     contrast math that their saturated values fail AA as text, so tinted variants
+     exist for any place they must be legible. The starfield itself (ParticleField/
+     LightField) stays strictly warm-gold/white, never these accents.
+     Values must match src/tokens/forge.ts and tailwind.config.js exactly. */
+  --forge-canvas: #07060d;
+  --forge-surface-1: #120b24;
+  --forge-surface-2: #1b1333;
+  --forge-surface-border: rgba(139, 92, 246, 0.22);
+  --forge-accent: #ffb020;
+  --forge-accent-secondary: #ff7a1a;
+  --forge-accent-pressed: #e6672f;
+  --forge-accent-2: #8b5cf6;
+  --forge-accent-2-tint: #b39dff;
+  --forge-accent-2-deep: #6d28d9;
+  --forge-accent-3: #63e6e8;
+  --forge-magenta-decorative: #e0299b;
+  --forge-magenta-tint: #ff7ac6;
+  --forge-text: #f8f9fc;
+  --forge-text-secondary: rgba(248, 249, 252, 0.72);
+  --forge-text-tertiary: rgba(248, 249, 252, 0.48);
+  --forge-text-disabled: rgba(248, 249, 252, 0.24);
+  --forge-confirmed: #6fa287;
+  --forge-notsure: #c9a24a;
+  --forge-risk: #e0637a;
+  /* "Confidence" semantic label color (typography hierarchy pass) — the rest of the palette had
+     no blue, every other hue already carries a different meaning (purple = metrics/structure,
+     gold = funding, cyan = rare tertiary highlight, green/amber/red = confirmed/unsure/risk). */
+  --forge-info: #5b9dff;
+  /* Typography color system (visual-polish pass) — a dedicated palette for body copy, distinct
+     from the chrome accents above (buttons/borders/glows keep their existing tokens). Exact hex
+     values as specified: headings pure white, section labels purple, funding/scores gold,
+     success emerald, risk rose, AI insight/recommendation keywords cyan, descriptions a soft
+     gray, helper text more muted still. */
+  --forge-heading: #ffffff;
+  --forge-label: #b78cff;
+  --forge-gold: #ffc857;
+  --forge-emerald: #5ef38c;
+  --forge-rose: #ff6a88;
+  --forge-cyan: #57e7ff;
+  --forge-desc: #c7cad8;
+  --forge-helper: #9ea3b8;
+  --forge-elevation-1: 0 12px 40px -12px rgba(7, 6, 13, 0.55);
+
+  --vf-glow-violet: 0 0 60px -12px rgba(124, 44, 255, 0.5);
+  --vf-glow-blue: 0 0 60px -14px rgba(22, 139, 255, 0.45);
+  --vf-glow-gold: 0 0 50px -12px rgba(255, 157, 28, 0.45);
+
+  --vf-radius: 1rem;
+  --vf-duration-fast: 200ms;
+  --vf-duration: 400ms;
+  --vf-duration-slow: 900ms;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* NOTE: `overflow-x: hidden` on html/body was tried here as a blanket fix for decorative-element
+   bleed and reverted — combined with the `height: 100%` above, it caps the document's scrollable
+   area to exactly one viewport and silently clips every section below the fold (verified via a
+   real regression during mobile validation: page content existed in the DOM at the correct
+   position but became permanently unreachable). The actual bleed source (a results-page watermark
+   image) is now contained locally at its own element instead — see AnalysisResult.tsx. */
+
+body {
+  @apply bg-forge-canvas font-body antialiased;
+  color: var(--forge-text-secondary);
+  /* Cosmic base wash behind every page — soft nebula glow only, no grid/graph-paper
+     lines (a faint 1px grid used to sit here; it read as a CAD/blueprint overlay, the
+     opposite of the deep-space atmosphere the product is going for). */
+  background-image:
+    radial-gradient(ellipse 90% 55% at 15% -10%, rgba(139, 92, 246, 0.16), transparent),
+    radial-gradient(ellipse 70% 50% at 100% 0%, rgba(224, 41, 155, 0.08), transparent),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 176, 32, 0.06), transparent);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3 {
+  @apply font-display;
+  color: var(--forge-text);
+}
+
+::selection {
+  background: rgba(124, 44, 255, 0.35);
+}
+
+:focus-visible {
+  outline: 2px solid theme("colors.signal.400");
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Every clickable control compresses slightly on press — relies on the `transition` utility
+   (already applied to virtually every button in this app) already including `transform` in its
+   property list, so this needs no per-component wiring. Skipped entirely under reduced-motion via
+   the global rule below, which zeroes all transition durations. */
+button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+/* Interactive cards/panels lift slightly and their border softly brightens on hover — applied via
+   the `.hover-lift` class rather than globally, so decorative panels (e.g. the results watermark
+   container) don't pick up a hover affordance that implies they're clickable when they aren't. */
+.hover-lift {
+  transition: transform 250ms ease, border-color 250ms ease, box-shadow 250ms ease;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  border-color: rgba(139, 92, 246, 0.4);
+  box-shadow: 0 12px 40px -20px rgba(139, 92, 246, 0.5);
+}
+
+/* Glass panel used for primary content surfaces — a translucent, bordered, blurred layer over the
+   ambient background. `.panel-glow` adds a violet ambient shadow for the single "headline" surface
+   on a given screen; not every panel gets one, or the glow stops meaning anything. */
+.panel {
+  @apply rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm;
+}
+
+.panel-glow {
+  box-shadow: var(--vf-glow-violet);
+}
+
+.text-display {
+  @apply font-display font-semibold tracking-tight;
+  color: var(--vf-text);
+}
+
+/* Animated gradient border for the single hero CTA (Home page only, opted into via className —
+   never the default MagneticButton look elsewhere). A spinning conic gradient sits behind the
+   button and is masked down to a 2px ring using padding + background-clip, so only the border
+   itself animates, not the button's fill. */
+.cta-border {
+  position: relative;
+  z-index: 0;
+}
+.cta-border::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(90deg, #ffb020, #ff7a1a, #8b5cf6, #ffb020, #ff7a1a);
+  background-size: 300% 100%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: border-spin 5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

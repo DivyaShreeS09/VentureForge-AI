@@ -1,0 +1,478 @@
+{
+  "model_name": "success_predictor",
+  "version": "v1",
+  "dataset_version": "v2-crunchbase-2013-date-features",
+  "n_duplicate_permalinks": 0,
+  "selected_algorithm": "voting_ensemble",
+  "selected_pipeline": "voting_ensemble",
+  "ensemble_and_target_encoding_finding": "Selected: voting_ensemble (CV ROC-AUC 0.8200). ",
+  "hyperparameter_tuning": {
+    "tuned": false,
+    "reason": "no search space defined for this algorithm"
+  },
+  "calibration_method": "isotonic",
+  "trained_at": "2026-07-31T22:19:05.795899+00:00",
+  "seed": 42,
+  "features": [
+    "funding_total_usd",
+    "funding_rounds",
+    "company_age_years",
+    "category_count",
+    "funding_per_round",
+    "funding_velocity",
+    "funding_per_category",
+    "primary_category",
+    "country_code"
+  ],
+  "n_train": 10667,
+  "n_test": 2667,
+  "using_real_dataset": true,
+  "dataset_provenance": "Real dataset: kaggle:yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase (Community Data License Agreement - Sharing 1.0), 66,368 Crunchbase-derived company records, transformed by ml/src/preprocessing/prepare_success_dataset.py into ml/data/raw/success_dataset.csv (13,334 rows with a resolved acquired/ipo/closed outcome; 'operating' rows excluded as unresolved \u2014 see ml/DATASETS.md). These metrics reflect a real, licensed, schema-inspected dataset.",
+  "cv_results": {
+    "dummy_stratified": {
+      "cv_roc_auc_mean": 0.5012438996107663,
+      "cv_roc_auc_std": 0.011295338179670869
+    },
+    "logreg": {
+      "cv_roc_auc_mean": 0.8149689811050613,
+      "cv_roc_auc_std": 0.006338791694423252
+    },
+    "random_forest": {
+      "cv_roc_auc_mean": 0.8097689275264144,
+      "cv_roc_auc_std": 0.005476761759130998
+    },
+    "extra_trees": {
+      "cv_roc_auc_mean": 0.7909448267955322,
+      "cv_roc_auc_std": 0.0059352738803239375
+    },
+    "gradient_boosting": {
+      "cv_roc_auc_mean": 0.8163281365630891,
+      "cv_roc_auc_std": 0.0046181090561848905
+    },
+    "hist_gradient_boosting": {
+      "cv_roc_auc_mean": 0.8166317229659003,
+      "cv_roc_auc_std": 0.005398134233203166
+    },
+    "hist_gradient_boosting_target_encoded": {
+      "cv_roc_auc_mean": 0.8122721384061994,
+      "cv_roc_auc_std": 0.005850713417042678
+    },
+    "xgboost": {
+      "cv_roc_auc_mean": 0.8143083556515526,
+      "cv_roc_auc_std": 0.00605690713297105
+    },
+    "voting_ensemble": {
+      "cv_roc_auc_mean": 0.8200011625389307,
+      "cv_roc_auc_std": 0.005795952956762963
+    }
+  },
+  "cv_scheme": "RepeatedStratifiedKFold(n_splits=5, n_repeats=3)",
+  "train_metrics": {
+    "accuracy": 0.7661010593418955,
+    "balanced_accuracy": 0.763932444773288,
+    "precision": 0.7708546135512427,
+    "recall": 0.7976043685044918,
+    "f1": 0.7840013851614579,
+    "confusion_matrix": [
+      [
+        3644,
+        1346
+      ],
+      [
+        1149,
+        4528
+      ]
+    ],
+    "confusion_matrix_labels": [
+      0,
+      1
+    ],
+    "mcc": 0.529494935572694,
+    "cohen_kappa": 0.5291288543268631,
+    "roc_auc": 0.8514365528661691,
+    "pr_auc": 0.8625511062416749,
+    "brier_score": 0.15676619293076005
+  },
+  "test_metrics": {
+    "accuracy": 0.7574053243344582,
+    "balanced_accuracy": 0.7548347969859598,
+    "precision": 0.7601078167115903,
+    "recall": 0.7949260042283298,
+    "f1": 0.7771271098863245,
+    "confusion_matrix": [
+      [
+        892,
+        356
+      ],
+      [
+        291,
+        1128
+      ]
+    ],
+    "confusion_matrix_labels": [
+      0,
+      1
+    ],
+    "mcc": 0.5118914700463868,
+    "cohen_kappa": 0.5112740812114507,
+    "roc_auc": 0.8384244954012395,
+    "pr_auc": 0.8393361236846373,
+    "brier_score": 0.16187147389710652
+  },
+  "test_calibration": {
+    "expected_calibration_error": 0.01478365588702567,
+    "bins": [
+      {
+        "range": [
+          0.5,
+          0.6
+        ],
+        "count": 625,
+        "avg_confidence": 0.5524027031009814,
+        "avg_accuracy": 0.5424,
+        "gap": 0.010002703100981392
+      },
+      {
+        "range": [
+          0.6,
+          0.7
+        ],
+        "count": 410,
+        "avg_confidence": 0.6459078638715313,
+        "avg_accuracy": 0.6902439024390243,
+        "gap": 0.04433603856749302
+      },
+      {
+        "range": [
+          0.7,
+          0.8
+        ],
+        "count": 547,
+        "avg_confidence": 0.7539239514999454,
+        "avg_accuracy": 0.7623400365630713,
+        "gap": 0.008416085063125855
+      },
+      {
+        "range": [
+          0.8,
+          0.9
+        ],
+        "count": 602,
+        "avg_confidence": 0.8560029187695666,
+        "avg_accuracy": 0.8637873754152824,
+        "gap": 0.007784456645715809
+      },
+      {
+        "range": [
+          0.9,
+          1.0
+        ],
+        "count": 483,
+        "avg_confidence": 0.9426320837067056,
+        "avg_accuracy": 0.9544513457556936,
+        "gap": 0.011819262048987977
+      }
+    ]
+  },
+  "overfitting_check": {
+    "train_roc_auc": 0.8514365528661691,
+    "test_roc_auc": 0.8384244954012395,
+    "gap": 0.013012057464929616
+  },
+  "temporal_split_diagnostic": {
+    "ran": true,
+    "algorithm": "hist_gradient_boosting (untuned, uncalibrated \u2014 a fixed reference model, not the final tuned/calibrated pipeline, so this diagnostic isolates the temporal-drift question from the hyperparameter/calibration choices made on the random split)",
+    "train_rows": 10666,
+    "test_rows": 2667,
+    "train_date_range": [
+      "1971-01-01 00:00:00",
+      "2014-01-01 00:00:00"
+    ],
+    "test_date_range": [
+      "2014-01-01 00:00:00",
+      "2015-12-04 00:00:00"
+    ],
+    "excluded_rows_missing_last_funding_at": 1,
+    "roc_auc": 0.9112377175194101,
+    "accuracy": 0.8350206224221972,
+    "f1": 0.8271798900235664
+  },
+  "threshold_sweep": [
+    {
+      "threshold": 0.05,
+      "precision": 0.5611881188118812,
+      "recall": 0.9985905567300916,
+      "f1": 0.7185598377281948,
+      "accuracy": 0.5838020247469067
+    },
+    {
+      "threshold": 0.1,
+      "precision": 0.5993179880647911,
+      "recall": 0.9908386187455955,
+      "f1": 0.746879150066401,
+      "accuracy": 0.6426696662917135
+    },
+    {
+      "threshold": 0.15,
+      "precision": 0.6236559139784946,
+      "recall": 0.9809725158562368,
+      "f1": 0.76253081347576,
+      "accuracy": 0.6749156355455568
+    },
+    {
+      "threshold": 0.2,
+      "precision": 0.6421591437878083,
+      "recall": 0.9725158562367865,
+      "f1": 0.773542600896861,
+      "accuracy": 0.6970378702662168
+    },
+    {
+      "threshold": 0.25,
+      "precision": 0.6575408261287223,
+      "recall": 0.9647639182522904,
+      "f1": 0.7820622679234505,
+      "accuracy": 0.7139107611548556
+    },
+    {
+      "threshold": 0.3,
+      "precision": 0.6717974180734856,
+      "recall": 0.9534883720930233,
+      "f1": 0.78823186717157,
+      "accuracy": 0.7274090738657668
+    },
+    {
+      "threshold": 0.35,
+      "precision": 0.6838311019567456,
+      "recall": 0.9358703312191684,
+      "f1": 0.7902409997024695,
+      "accuracy": 0.735658042744657
+    },
+    {
+      "threshold": 0.4,
+      "precision": 0.7045951859956237,
+      "recall": 0.9076814658210007,
+      "f1": 0.7933477055743764,
+      "accuracy": 0.7484064491938508
+    },
+    {
+      "threshold": 0.45,
+      "precision": 0.7364905889496054,
+      "recall": 0.8548273431994362,
+      "f1": 0.7912589693411611,
+      "accuracy": 0.7600299962504687
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.7601078167115903,
+      "recall": 0.7949260042283298,
+      "f1": 0.7771271098863245,
+      "accuracy": 0.7574053243344582
+    },
+    {
+      "threshold": 0.55,
+      "precision": 0.789860396767083,
+      "recall": 0.7575757575757576,
+      "f1": 0.7733812949640287,
+      "accuracy": 0.7637795275590551
+    },
+    {
+      "threshold": 0.6,
+      "precision": 0.8088113050706567,
+      "recall": 0.6856941508104298,
+      "f1": 0.7421815408085431,
+      "accuracy": 0.7465316835395576
+    },
+    {
+      "threshold": 0.65,
+      "precision": 0.8174386920980926,
+      "recall": 0.6342494714587738,
+      "f1": 0.7142857142857143,
+      "accuracy": 0.7300337457817773
+    },
+    {
+      "threshold": 0.7,
+      "precision": 0.8283963227783453,
+      "recall": 0.5715292459478506,
+      "f1": 0.6763969974979149,
+      "accuracy": 0.7090363704536933
+    },
+    {
+      "threshold": 0.75,
+      "precision": 0.8521303258145363,
+      "recall": 0.4792107117688513,
+      "f1": 0.6134415877311682,
+      "accuracy": 0.6786651668541432
+    },
+    {
+      "threshold": 0.8,
+      "precision": 0.8853615520282186,
+      "recall": 0.3537702607470049,
+      "f1": 0.5055387713997986,
+      "accuracy": 0.6317960254968129
+    },
+    {
+      "threshold": 0.85,
+      "precision": 0.8921568627450981,
+      "recall": 0.25651867512332627,
+      "f1": 0.39846743295019155,
+      "accuracy": 0.5879265091863517
+    },
+    {
+      "threshold": 0.9,
+      "precision": 0.9444444444444444,
+      "recall": 0.10782241014799154,
+      "f1": 0.1935483870967742,
+      "accuracy": 0.5219347581552306
+    },
+    {
+      "threshold": 0.95,
+      "precision": 0.9811320754716981,
+      "recall": 0.036645525017618044,
+      "f1": 0.07065217391304347,
+      "accuracy": 0.4870641169853768
+    }
+  ],
+  "recommended_threshold": {
+    "threshold": 0.4,
+    "precision": 0.7045951859956237,
+    "recall": 0.9076814658210007,
+    "f1": 0.7933477055743764,
+    "accuracy": 0.7484064491938508
+  },
+  "threshold_objective": "f1",
+  "subgroup_metrics": {
+    "primary_category": [
+      {
+        "group": "unknown",
+        "n": 228,
+        "roc_auc": 0.8509488084730804
+      },
+      {
+        "group": "biotechnology",
+        "n": 195,
+        "roc_auc": 0.7098907418056354
+      },
+      {
+        "group": "software",
+        "n": 192,
+        "roc_auc": 0.7866141732283464
+      }
+    ],
+    "country_code": [
+      {
+        "group": "usa",
+        "n": 1639,
+        "roc_auc": 0.7950375939849625
+      },
+      {
+        "group": "unknown",
+        "n": 409,
+        "roc_auc": 0.8229208822339135
+      },
+      {
+        "group": "gbr",
+        "n": 100,
+        "roc_auc": 0.8307291666666667
+      }
+    ]
+  },
+  "learning_curve": {
+    "train_sizes": [
+      1422,
+      2844,
+      4266,
+      5688,
+      7111
+    ],
+    "train_roc_auc_mean": [
+      0.9071173553976911,
+      0.8794493038259246,
+      0.8704906713217196,
+      0.8630542287886255,
+      0.8605203269638624
+    ],
+    "val_roc_auc_mean": [
+      0.8037764084094571,
+      0.8132157891010164,
+      0.81624929576562,
+      0.8186081142504301,
+      0.8206172992605195
+    ]
+  },
+  "permutation_importance": [
+    {
+      "feature": "funding_total_usd",
+      "importance_mean": 0.23563104773133836,
+      "importance_std": 0.008809433403516989
+    },
+    {
+      "feature": "country_code",
+      "importance_mean": 0.03087155092969036,
+      "importance_std": 0.002235409158934918
+    },
+    {
+      "feature": "funding_velocity",
+      "importance_mean": 0.020228136688892406,
+      "importance_std": 0.0027680614990603096
+    },
+    {
+      "feature": "funding_per_category",
+      "importance_mean": 0.01702439195171749,
+      "importance_std": 0.0029869167217887616
+    },
+    {
+      "feature": "company_age_years",
+      "importance_mean": 0.01515038578992064,
+      "importance_std": 0.002836648766118178
+    },
+    {
+      "feature": "primary_category",
+      "importance_mean": 0.014827868352577578,
+      "importance_std": 0.003234416872884431
+    },
+    {
+      "feature": "category_count",
+      "importance_mean": 0.0074688917348800675,
+      "importance_std": 0.0018059528449414562
+    },
+    {
+      "feature": "funding_rounds",
+      "importance_mean": 0.0030426695397625216,
+      "importance_std": 0.0009714976036715053
+    },
+    {
+      "feature": "funding_per_round",
+      "importance_mean": 0.002790031351077793,
+      "importance_std": 0.0013931740315410493
+    }
+  ],
+  "inference_latency_ms_per_prediction": 160.35210599999118,
+  "artifact_size_bytes": 1725471,
+  "library_versions": {
+    "scikit-learn": "1.9.0",
+    "numpy": "2.5.1",
+    "pandas": "2.3.3",
+    "joblib": "1.5.3"
+  },
+  "label_meaning": {
+    "1": "success \u2014 reached an M&A exit or IPO (historical, resolved outcome)",
+    "0": "failure \u2014 shut down (historical, resolved outcome)"
+  },
+  "disclaimer": "This is a historical pattern estimate derived from resolved Crunchbase outcomes, not a guarantee of startup success. See ml/DATASETS.md for known limitations (cumulative funding-history features carry some inherent survivorship/timing bias).",
+  "training_command": "python -m ml.src.training.train_success_classifier",
+  "model_card": {
+    "purpose": "Estimate the historical likelihood that a startup with similar funding/category/geography characteristics reached a resolved M&A exit or IPO ('success') versus shutting down ('failure'), based on resolved Crunchbase outcomes. Intended as an informational pattern estimate surfaced alongside other VentureForge signals \u2014 never as the sole basis for a funding, investment, or resource decision.",
+    "training_data": "13,334 resolved-outcome Crunchbase company records (kaggle:yanmaksi/big-startup-secsees-fail-dataset-from-crunchbase, CDLA-Sharing-1.0). 'Operating' (unresolved) companies are excluded from this classifier \u2014 see the Track 2 survival-analysis section of ml/DATASETS.md for why that exclusion is a real survivorship-bias concern, and how a Cox model addresses it instead.",
+    "known_limitations": [
+      "No investor-count field exists anywhere in the source dataset \u2014 cannot be used as a feature or reported as absent-but-available; genuinely not collected.",
+      "No funding-stage/round-type (e.g. seed/Series A) field exists \u2014 cannot construct a funding-stage-progression feature.",
+      "funding_total_usd and funding_rounds are cumulative totals as of each company's last recorded funding event, which partly reflects the outcome's own timeline (see 'Known limitations (success prediction)' in ml/DATASETS.md).",
+      "Excluding 'operating' companies (this classifier's target definition) introduces a real survivorship-bias risk: only companies whose fate has already resolved are used to train and evaluate it. The Track 2 survival analysis in ml/DATASETS.md addresses this using the same source data's censored (operating) rows.",
+      "Domain is Crunchbase-tracked companies only; not evaluated on non-Crunchbase or bootstrapped businesses."
+    ],
+    "scientific_caveats": [
+      "Historical pattern estimate, not a causal or predictive guarantee for any individual startup.",
+      "Target-encoding and ensemble candidates were evaluated honestly via cross-validation and only adopted if they demonstrably improved performance \u2014 see `ensemble_and_target_encoding_finding` above."
+    ]
+  }
+}
