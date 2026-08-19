@@ -76,7 +76,11 @@ export function AdditionalDetailsScene({
 
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
+<<<<<<< HEAD
           What would someone pay for this, per month?
+=======
+          How much will people pay?
+>>>>>>> master
         </h2>
         {isAdvanced ? (
           <LabeledField
@@ -103,7 +107,11 @@ export function AdditionalDetailsScene({
 
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
+<<<<<<< HEAD
           How many customers do you have (or expect first)?
+=======
+          How many customers do you have?
+>>>>>>> master
         </h2>
         <LabeledField
           label="Initial customer count"
@@ -139,8 +147,13 @@ export function AdditionalDetailsScene({
       )}
 
       <div className="flex flex-col gap-3">
+<<<<<<< HEAD
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">Where are your first customers?</h2>
         <div role="radiogroup" aria-label="Where are your first customers?" className="grid grid-cols-2 gap-3 forge-sm:grid-cols-4">
+=======
+        <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">Where will you find your first customers?</h2>
+        <div role="radiogroup" aria-label="Where will you find your first customers?" className="grid grid-cols-2 gap-3 forge-sm:grid-cols-4">
+>>>>>>> master
           {GEOGRAPHIES.map((geo) => (
             <ChoiceCard
               key={geo}
@@ -160,7 +173,11 @@ export function AdditionalDetailsScene({
         </div>
         {showOtherGeography && (
           <TextField
+<<<<<<< HEAD
             label="Where are your first customers?"
+=======
+            label="Where will you find your first customers?"
+>>>>>>> master
             placeholder="e.g. Southeast Asia"
             value={marketEvidence.geography ?? ""}
             onChange={(v) => onMarketEvidenceChange({ geography: v || null })}
@@ -173,8 +190,13 @@ export function AdditionalDetailsScene({
           Who else is already solving this?
         </h2>
         <TagInput
+<<<<<<< HEAD
           label="Known competitors or alternatives"
           placeholder="Type a name and press Enter"
+=======
+          label="Similar products or companies"
+          placeholder="e.g. Uber, Amazon, Google"
+>>>>>>> master
           tags={marketEvidence.known_competitors ?? []}
           onChange={(tags) => onMarketEvidenceChange({ known_competitors: tags })}
         />
@@ -183,11 +205,19 @@ export function AdditionalDetailsScene({
       {isAdvanced && (
         <div className="flex flex-col gap-4 border-t border-forge-text/[.08] pt-6">
           <p className="text-forge-1 font-medium uppercase tracking-[0.1em] text-forge-text-tertiary">
+<<<<<<< HEAD
             Company &amp; funding, if this is already a registered company
           </p>
           <div className="grid grid-cols-1 gap-4 forge-sm:grid-cols-2">
             <LabeledField
               label="Total funding raised (USD)"
+=======
+            Company details, if you already have a company
+          </p>
+          <div className="grid grid-cols-1 gap-4 forge-sm:grid-cols-2">
+            <LabeledField
+              label="How much funding have you raised? (USD)"
+>>>>>>> master
               placeholder="e.g. 50000"
               type="number"
               min={0}
@@ -195,7 +225,11 @@ export function AdditionalDetailsScene({
               onChange={(v) => onCompanyMetricsChange({ total_funding_usd: v === "" ? null : Number(v) })}
             />
             <LabeledField
+<<<<<<< HEAD
               label="Funding rounds so far"
+=======
+              label="How many funding rounds?"
+>>>>>>> master
               placeholder="e.g. 1"
               type="number"
               min={0}
@@ -203,7 +237,11 @@ export function AdditionalDetailsScene({
               onChange={(v) => onCompanyMetricsChange({ funding_rounds: v === "" ? null : Number(v) })}
             />
             <LabeledField
+<<<<<<< HEAD
               label="Year founded"
+=======
+              label="What year did you start?"
+>>>>>>> master
               placeholder="e.g. 2024"
               type="number"
               min={1900}
@@ -212,7 +250,11 @@ export function AdditionalDetailsScene({
               onChange={(v) => onCompanyMetricsChange({ founded_year: v === "" ? null : Number(v) })}
             />
             <LabeledField
+<<<<<<< HEAD
               label="Country code"
+=======
+              label="Which country is your company in?"
+>>>>>>> master
               placeholder="e.g. usa"
               value={companyMetrics.country_code ?? ""}
               onChange={(v) => onCompanyMetricsChange({ country_code: v || null })}

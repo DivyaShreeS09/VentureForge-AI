@@ -9,6 +9,10 @@ import { AutosavedIndicator } from "../components/shared/AutosavedIndicator";
 import { OpeningLineScene } from "../components/discovery/OpeningLineScene";
 import { WhoItsForScene, MAX_SEGMENTS } from "../components/discovery/WhoItsForScene";
 import { WhereYouAreScene } from "../components/discovery/WhereYouAreScene";
+<<<<<<< HEAD
+=======
+import { useLanguage } from "../context/LanguageContext";
+>>>>>>> master
 
 const MIN_DESCRIPTION_LENGTH = 10;
 type Step = 1 | 2 | 3;
@@ -24,6 +28,10 @@ type Step = 1 | 2 | 3;
 export function IdeaSubmissionPage() {
   const navigate = useNavigate();
   const { idea, updateIdea } = useNewAnalysis();
+<<<<<<< HEAD
+=======
+  const { t } = useLanguage();
+>>>>>>> master
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState<string | null>(null);
   const sceneTransition = useMotionTier("scene");
@@ -49,11 +57,24 @@ export function IdeaSubmissionPage() {
   function goNext() {
     if (step === 1) {
       if (!idea.name.trim()) {
+<<<<<<< HEAD
         setError("Give it a name before we continue.");
         return;
       }
       if (idea.problemSolution.trim().length < MIN_DESCRIPTION_LENGTH) {
         setError(`Say a little more — at least ${MIN_DESCRIPTION_LENGTH} characters.`);
+=======
+        setError(t("idea.error.name"));
+        return;
+      }
+      if (idea.problemSolution.trim().length < MIN_DESCRIPTION_LENGTH) {
+        setError(
+      t("idea.error.description").replace(
+      "{min}",
+      String(MIN_DESCRIPTION_LENGTH),
+  ),
+);
+>>>>>>> master
         return;
       }
     }
@@ -117,12 +138,26 @@ export function IdeaSubmissionPage() {
         </AnimatePresence>
 
         <div className="mt-10 flex w-full max-w-[560px] items-center justify-between forge-sm:max-w-[680px]">
+<<<<<<< HEAD
           <Button variant="ghost" onClick={() => setStep((s) => Math.max(1, s - 1) as Step)} disabled={step === 1}>
             Back
           </Button>
           <Button variant="primary" onClick={goNext}>
             Continue
           </Button>
+=======
+        <Button
+  variant="ghost"
+  onClick={() => setStep((s) => Math.max(1, s - 1) as Step)}
+  disabled={step === 1}
+>
+  {t("common.back")}
+</Button>
+
+<Button variant="primary" onClick={goNext}>
+  {t("common.continue")}
+</Button>
+>>>>>>> master
         </div>
 
         <AutosavedIndicator />

@@ -9,6 +9,10 @@ import { SceneTransition } from "./motion/SceneTransition";
 import { useTransitionTier } from "./motion/act";
 import { ThresholdPage } from "./pages/ThresholdPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+<<<<<<< HEAD
+=======
+import { LanguageSelector } from "./components/language/LanguageSelector";
+>>>>>>> master
 
 // Route-level code splitting: ThresholdPage (the landing page every visitor hits first) stays in
 // the main bundle; every other page — especially AnalysisResultPage, which pulls in all 8 Reveal
@@ -106,11 +110,19 @@ function App() {
     <RootErrorBoundary>
       <BrowserRouter>
         <RootLayout>
+<<<<<<< HEAD
+=======
+          <LanguageSelector />
+
+>>>>>>> master
           <AppRoutes />
         </RootLayout>
       </BrowserRouter>
     </RootErrorBoundary>
   );
 }
+<<<<<<< HEAD
 
+=======
+>>>>>>> master
 export default App;
