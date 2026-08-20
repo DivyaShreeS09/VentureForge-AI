@@ -116,3 +116,9 @@ build/
 # OS
 .DS_Store
 Thumbs.dbS
+frontend old/
+frontend-backup/
+frontend-broken/
+frontend-fixed.zip
+*.backup
+*.broken
