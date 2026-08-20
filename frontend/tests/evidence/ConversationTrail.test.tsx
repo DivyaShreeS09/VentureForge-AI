@@ -18,7 +18,7 @@ describe("ConversationTrail", () => {
       customer_pain_evidence: { state: "not_sure_yet", severity: null },
     };
     render(<ConversationTrail dimensions={EVIDENCE_DIMENSIONS} answers={answers} currentIndex={1} />);
-    expect(screen.getByText(/can you state the problem in one clear sentence — answered/i)).toBeInTheDocument();
+    expect(screen.getByText(/how well do you understand the problem — answered/i)).toBeInTheDocument();
     expect(screen.queryByText(/customer_pain/i)).not.toBeInTheDocument();
   });
 

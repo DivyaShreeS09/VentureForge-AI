@@ -1,6 +1,11 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { OpeningLineScene } from "../../src/components/discovery/OpeningLineScene";
+import { LanguageProvider } from "../../src/context/LanguageContext";
+
+function renderScene(ui: React.ReactElement) {
+  return render(<LanguageProvider>{ui}</LanguageProvider>);
+}
 
 function baseProps(overrides: Partial<React.ComponentProps<typeof OpeningLineScene>> = {}) {
   return {
@@ -19,19 +24,19 @@ function baseProps(overrides: Partial<React.ComponentProps<typeof OpeningLineSce
 
 describe("OpeningLineScene", () => {
   it("asks only the description question until enough has been written", () => {
-    render(<OpeningLineScene {...baseProps({ description: "short" })} />);
+    renderScene(<OpeningLineScene {...baseProps({ description: "short" })} />);
     expect(screen.getByRole("heading", { name: /what are you building/i })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /what should i call it/i })).not.toBeInTheDocument();
   });
 
   it("progressively discloses the name prompt once the description clears the minimum length", () => {
-    render(<OpeningLineScene {...baseProps({ description: "A tool that helps restaurants reduce waste." })} />);
+    renderScene(<OpeningLineScene {...baseProps({ description: "A tool that helps restaurants reduce waste." })} />);
     expect(screen.getByRole("heading", { name: /what should i call it/i })).toBeInTheDocument();
   });
 
   it("submits on Enter in the name field", () => {
     const onSubmit = vi.fn();
-    render(
+    renderScene(
       <OpeningLineScene
         {...baseProps({ description: "A tool that helps restaurants reduce waste.", onSubmit })}
       />,
@@ -41,7 +46,7 @@ describe("OpeningLineScene", () => {
   });
 
   it("surfaces a validation error as a real alert", () => {
-    render(<OpeningLineScene {...baseProps({ error: "Say a little more." })} />);
+    renderScene(<OpeningLineScene {...baseProps({ error: "Say a little more." })} />);
     expect(screen.getByRole("alert")).toHaveTextContent("Say a little more.");
   });
 });

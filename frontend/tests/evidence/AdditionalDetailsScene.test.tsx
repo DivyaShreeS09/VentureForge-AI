@@ -24,20 +24,20 @@ describe("AdditionalDetailsScene", () => {
 
   it("hides company & funding history fields in Beginner mode", () => {
     render(<AdditionalDetailsScene {...baseProps({ mode: "beginner" })} />);
-    expect(screen.queryByLabelText(/total funding raised/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/how much funding have you raised/i)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/gross margin/i)).not.toBeInTheDocument();
   });
 
   it("shows company & funding history fields, and exact pricing, only in Advanced mode", () => {
     render(<AdditionalDetailsScene {...baseProps({ mode: "advanced" })} />);
-    expect(screen.getByLabelText(/total funding raised/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/how much funding have you raised/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/price per customer/i)).toBeInTheDocument();
   });
 
   it("reports a numeric value as a real number", () => {
     const onCompanyMetricsChange = vi.fn();
     render(<AdditionalDetailsScene {...baseProps({ mode: "advanced", onCompanyMetricsChange })} />);
-    fireEvent.change(screen.getByLabelText(/total funding raised/i), { target: { value: "50000" } });
+    fireEvent.change(screen.getByLabelText(/how much funding have you raised/i), { target: { value: "50000" } });
     expect(onCompanyMetricsChange).toHaveBeenCalledWith({ total_funding_usd: 50000 });
   });
 
@@ -48,7 +48,7 @@ describe("AdditionalDetailsScene", () => {
         {...baseProps({ mode: "advanced", companyMetrics: { total_funding_usd: 50000 }, onCompanyMetricsChange })}
       />,
     );
-    fireEvent.change(screen.getByLabelText(/total funding raised/i), { target: { value: "" } });
+    fireEvent.change(screen.getByLabelText(/how much funding have you raised/i), { target: { value: "" } });
     expect(onCompanyMetricsChange).toHaveBeenCalledWith({ total_funding_usd: null });
   });
 

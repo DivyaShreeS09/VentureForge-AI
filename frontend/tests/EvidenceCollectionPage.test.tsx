@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { axe } from "jest-axe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewAnalysisProvider } from "../src/context/NewAnalysisContext";
+import { LanguageProvider } from "../src/context/LanguageContext";
 import { EvidenceCollectionPage } from "../src/pages/EvidenceCollectionPage";
 import { EVIDENCE_DIMENSIONS } from "../src/components/evidence/evidenceDimensions";
 import * as api from "../src/services/api";
@@ -32,13 +33,15 @@ function seedIdea() {
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={["/new/evidence"]}>
-      <NewAnalysisProvider>
-        <Routes>
-          <Route path="/new/idea" element={<p>Idea Submission (stub)</p>} />
-          <Route path="/new/evidence" element={<EvidenceCollectionPage />} />
-          <Route path="/startups/:id/status" element={<p>Analysis Status (stub)</p>} />
-        </Routes>
-      </NewAnalysisProvider>
+      <LanguageProvider>
+        <NewAnalysisProvider>
+          <Routes>
+            <Route path="/new/idea" element={<p>Idea Submission (stub)</p>} />
+            <Route path="/new/evidence" element={<EvidenceCollectionPage />} />
+            <Route path="/startups/:id/status" element={<p>Analysis Status (stub)</p>} />
+          </Routes>
+        </NewAnalysisProvider>
+      </LanguageProvider>
     </MemoryRouter>,
   );
 }
@@ -174,10 +177,10 @@ describe("EvidenceCollectionPage", () => {
   it("switching to Advanced mode reveals exact pricing and company/funding fields", async () => {
     renderPage();
     await answerAllEvidenceQuestions();
-    expect(screen.queryByLabelText(/total funding raised/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/how much funding have you raised/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("radio", { name: "Advanced" }));
-    expect(screen.getByLabelText(/total funding raised/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/how much funding have you raised/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/price per customer/i)).toBeInTheDocument();
   });
 });

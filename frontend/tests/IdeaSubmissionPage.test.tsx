@@ -3,15 +3,18 @@ import { MemoryRouter } from "react-router-dom";
 import { axe } from "jest-axe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NewAnalysisProvider } from "../src/context/NewAnalysisContext";
+import { LanguageProvider } from "../src/context/LanguageContext";
 import { IdeaSubmissionPage } from "../src/pages/IdeaSubmissionPage";
 import * as api from "../src/services/api";
 
 function renderPage() {
   return render(
     <MemoryRouter>
-      <NewAnalysisProvider>
-        <IdeaSubmissionPage />
-      </NewAnalysisProvider>
+      <LanguageProvider>
+        <NewAnalysisProvider>
+          <IdeaSubmissionPage />
+        </NewAnalysisProvider>
+      </LanguageProvider>
     </MemoryRouter>,
   );
 }
