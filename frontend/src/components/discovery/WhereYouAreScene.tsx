@@ -29,24 +29,34 @@ const STAGES = [
   },
 ] as const;
 
-export function WhereYouAreScene({ stage, onSelect }: Props) {
+export function WhereYouAreScene({
+  stage,
+  onSelect,
+}: Props) {
   const { t } = useLanguage();
+
+  const question = t("whereYouAre.question");
+
+  const translatedStages = STAGES.map((item) => ({
+    ...item,
+    label: t(item.key),
+  }));
 
   return (
     <div className="flex w-full max-w-[680px] flex-col gap-6">
       <h1 className="font-forge-serif text-forge-6 font-semibold leading-[1.15] text-forge-text forge-sm:text-forge-7">
-        {t("whereYouAre.question")}
+        {question}
       </h1>
 
       <div
         role="radiogroup"
-        aria-label={t("whereYouAre.question")}
+        aria-label={question}
         className="grid grid-cols-1 gap-3 forge-sm:grid-cols-5"
       >
-        {STAGES.map((item) => (
+        {translatedStages.map((item) => (
           <ChoiceCard
             key={item.value}
-            label={t(item.key)}
+            label={item.label}
             selected={stage === item.value}
             onSelect={() => onSelect(item.value)}
           />

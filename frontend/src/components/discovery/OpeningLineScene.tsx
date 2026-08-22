@@ -20,11 +20,6 @@ interface Props {
 
 const MIN_DESCRIPTION_LENGTH = 10;
 
-/** Product Bible screenplay, "INT. THE OPENING LINE": the founder's first real input. The name
- * prompt is deliberately absent until the description clears the same minimum length the backend
- * itself requires (progressive disclosure — one question at a time, never two blank fields at
- * once). The live industry read sits in the periphery, low-opacity, exactly as the screenplay
- * describes it: "unbothered by being noticed or not." */
 export function OpeningLineScene({
   description,
   name,
@@ -39,21 +34,31 @@ export function OpeningLineScene({
   const { t } = useLanguage();
 
   const sceneTransition = useMotionTier("scene");
-  const nameRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
-  const showNamePrompt = description.trim().length >= MIN_DESCRIPTION_LENGTH;
+
+  const nameRef =
+    useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
   const namePreviouslyShown = useRef(false);
 
+  const showNamePrompt =
+    description.trim().length >= MIN_DESCRIPTION_LENGTH;
+
+  const openingQuestion = t("idea.opening.question");
+  const nameQuestion = t("idea.opening.nameQuestion");
+
   useEffect(() => {
-    if (showNamePrompt && !namePreviouslyShown.current) {
+    if (
+      showNamePrompt &&
+      !namePreviouslyShown.current
+    ) {
       namePreviouslyShown.current = true;
-      // Bible: the founder's attention should move to the next open question the moment it
-      // appears, without requiring a manual click — a real accessibility win here (keyboard
-      // users never need to Tab past a field they can already see is complete).
       nameRef.current?.focus();
     }
   }, [showNamePrompt]);
 
-  function handleNameKeyDown(e: React.KeyboardEvent) {
+  function handleNameKeyDown(
+    e: React.KeyboardEvent,
+  ) {
     if (e.key === "Enter") {
       e.preventDefault();
       onSubmit();
@@ -63,17 +68,15 @@ export function OpeningLineScene({
   return (
     <div className="flex w-full max-w-[560px] flex-col gap-8">
       <div>
+        {/* Opening question */}
         <h1 className="font-forge-serif text-forge-6 font-semibold leading-[1.15] text-forge-text forge-sm:text-forge-7">
-          {t("idea.opening.question")}
+          {openingQuestion}
         </h1>
 
         <div className="relative mt-5">
           <TextField
             multiline
             label={t("idea.opening.label")}
-            // This is the very first, only field on the very first Discovery screen — there is
-            // nothing else on screen yet to steal focus from (unlike CommandCapsule's palette,
-            // this isn't reclaiming focus from content the founder was already reading).
             // eslint-disable-next-line jsx-a11y/no-autofocus
             autoFocus
             maxLength={2000}
@@ -85,14 +88,21 @@ export function OpeningLineScene({
 
           <div className="pointer-events-none absolute -right-2 top-1 hidden max-w-[11rem] translate-x-full pl-4 forge-lg:block">
             <div className="pointer-events-auto opacity-80">
-              <ConfidenceNote preview={preview} loading={previewLoading} error={previewError} />
+              <ConfidenceNote
+                preview={preview}
+                loading={previewLoading}
+                error={previewError}
+              />
             </div>
           </div>
         </div>
 
-        {/* Below the field on narrower viewports, where there's no periphery to place it in. */}
         <div className="mt-3 forge-lg:hidden">
-          <ConfidenceNote preview={preview} loading={previewLoading} error={previewError} />
+          <ConfidenceNote
+            preview={preview}
+            loading={previewLoading}
+            error={previewError}
+          />
         </div>
       </div>
 
@@ -104,14 +114,17 @@ export function OpeningLineScene({
             exit={{ opacity: 0 }}
             transition={sceneTransition}
           >
+            {/* Startup-name question */}
             <h2 className="font-forge-serif text-forge-5 font-semibold text-forge-text">
-              {t("idea.opening.nameQuestion")}
+              {nameQuestion}
             </h2>
 
             <TextField
               ref={nameRef}
               label={t("idea.opening.nameLabel")}
-              placeholder={t("idea.opening.namePlaceholder")}
+              placeholder={t(
+                "idea.opening.namePlaceholder",
+              )}
               value={name}
               onChange={onNameChange}
               onKeyDown={handleNameKeyDown}
@@ -122,7 +135,10 @@ export function OpeningLineScene({
       </AnimatePresence>
 
       {error && (
-        <p role="alert" className="text-forge-2 text-forge-risk">
+        <p
+          role="alert"
+          className="text-forge-2 text-forge-risk"
+        >
           {error}
         </p>
       )}

@@ -1,6 +1,10 @@
 import { useState } from "react";
-import { Slider, TagInput, TextField } from "../../primitives";
-import { ChoiceCard } from "../../primitives";
+import {
+  ChoiceCard,
+  Slider,
+  TagInput,
+  TextField,
+} from "../../primitives";
 import type { InputMode } from "../../context/NewAnalysisContext";
 import { useLanguage } from "../../context/LanguageContext";
 import type {
@@ -8,28 +12,43 @@ import type {
   MarketEvidence,
   RevenueAssumptions,
 } from "../../types/api";
+import { voiceAgent } from "../voice/VoiceAgent";
 
 interface Props {
   mode: InputMode;
   companyMetrics: CompanyMetrics;
   revenueAssumptions: RevenueAssumptions;
   marketEvidence: MarketEvidence;
-  onCompanyMetricsChange: (patch: Partial<CompanyMetrics>) => void;
+
+  onCompanyMetricsChange: (
+    patch: Partial<CompanyMetrics>,
+  ) => void;
+
   onRevenueAssumptionsChange: (
     patch: Partial<RevenueAssumptions>,
   ) => void;
-  onMarketEvidenceChange: (patch: Partial<MarketEvidence>) => void;
+
+  onMarketEvidenceChange: (
+    patch: Partial<MarketEvidence>,
+  ) => void;
 }
 
-const numberField = (value: number | null | undefined) =>
-  value === null || value === undefined ? "" : String(value);
+const numberField = (
+  value: number | null | undefined,
+) =>
+  value === null || value === undefined
+    ? ""
+    : String(value);
 
 function LabeledField({
   label,
   ...rest
 }: {
   label: string;
-} & Omit<React.ComponentProps<typeof TextField>, "label">) {
+} & Omit<
+  React.ComponentProps<typeof TextField>,
+  "label"
+>) {
   return (
     <div className="flex flex-col gap-1.5">
       <span
@@ -39,7 +58,10 @@ function LabeledField({
         {label}
       </span>
 
-      <TextField label={label} {...rest} />
+      <TextField
+        label={label}
+        {...rest}
+      />
     </div>
   );
 }
@@ -62,39 +84,84 @@ export function AdditionalDetailsScene({
 }: Props) {
   const { t } = useLanguage();
 
-  const isAdvanced = mode === "advanced";
+  const isAdvanced =
+    mode === "advanced";
 
-  const knownGeography = GEOGRAPHIES.includes(
-    (marketEvidence.geography ?? "") as (typeof GEOGRAPHIES)[number],
-  )
-    ? marketEvidence.geography
-    : marketEvidence.geography
-      ? "Other"
-      : null;
+  const knownGeography =
+    GEOGRAPHIES.includes(
+      (marketEvidence.geography ??
+        "") as (typeof GEOGRAPHIES)[number],
+    )
+      ? marketEvidence.geography
+      : marketEvidence.geography
+        ? "Other"
+        : null;
 
-  const [showOtherGeography, setShowOtherGeography] = useState(
+  const [
+    showOtherGeography,
+    setShowOtherGeography,
+  ] = useState(
     knownGeography === "Other",
   );
 
-  const priceTiers: { label: string; value: number | null }[] = [
+  const title =
+    t("additionalDetails.title");
+
+  const description =
+    t("additionalDetails.description");
+
+  const priceQuestion =
+    t(
+      "additionalDetails.price.question",
+    );
+
+  const customersQuestion =
+    t(
+      "additionalDetails.customers.question",
+    );
+
+  const geographyQuestion =
+    t(
+      "additionalDetails.geography.question",
+    );
+
+  const competitorsQuestion =
+    t(
+      "additionalDetails.competitors.question",
+    );
+
+  const priceTiers: {
+    label: string;
+    value: number | null;
+  }[] = [
     {
-      label: t("additionalDetails.price.free"),
+      label: t(
+        "additionalDetails.price.free",
+      ),
       value: 0,
     },
     {
-      label: t("additionalDetails.price.5_20"),
+      label: t(
+        "additionalDetails.price.5_20",
+      ),
       value: 12,
     },
     {
-      label: t("additionalDetails.price.20_100"),
+      label: t(
+        "additionalDetails.price.20_100",
+      ),
       value: 50,
     },
     {
-      label: t("additionalDetails.price.100_plus"),
+      label: t(
+        "additionalDetails.price.100_plus",
+      ),
       value: 150,
     },
     {
-      label: t("additionalDetails.price.notSure"),
+      label: t(
+        "additionalDetails.price.notSure",
+      ),
       value: null,
     },
   ];
@@ -102,39 +169,241 @@ export function AdditionalDetailsScene({
   const geographyOptions = [
     {
       value: "United States",
-      label: t("additionalDetails.geography.unitedStates"),
+      label: t(
+        "additionalDetails.geography.unitedStates",
+      ),
     },
     {
       value: "Europe",
-      label: t("additionalDetails.geography.europe"),
+      label: t(
+        "additionalDetails.geography.europe",
+      ),
     },
     {
       value: "Global",
-      label: t("additionalDetails.geography.global"),
+      label: t(
+        "additionalDetails.geography.global",
+      ),
     },
     {
       value: "Other",
-      label: t("additionalDetails.geography.other"),
+      label: t(
+        "additionalDetails.geography.other",
+      ),
     },
   ] as const;
 
+  const expectedGrowthLabel =
+    "Expected monthly growth";
+
+  const grossMarginLabel =
+    "Gross margin (what's left after direct costs)";
+
+  const companyDetailsTitle =
+    "Company details, if you already have a company";
+
+  /*
+   * Find the visible price option
+   * matching the current stored value.
+   */
+  const selectedPrice =
+    priceTiers.find(
+      (tier) =>
+        tier.value ===
+        revenueAssumptions.price_per_customer_usd,
+    )?.label ?? "";
+
+  /*
+   * Find translated geography
+   * corresponding to current selection.
+   */
+  const selectedGeography =
+    geographyOptions.find(
+      (geo) =>
+        geo.value ===
+        knownGeography,
+    )?.label ??
+    marketEvidence.geography ??
+    "";
+
+  /*
+   * ONE SPEAKER FOR THE WHOLE PAGE.
+   */
+  function speakWholePage() {
+    const competitors =
+      marketEvidence
+        .known_competitors?.length
+        ? marketEvidence
+            .known_competitors
+            .join(", ")
+        : "No competitors entered yet.";
+
+    const speechParts: string[] = [
+      title,
+      description,
+
+      priceQuestion,
+    ];
+
+    if (isAdvanced) {
+      speechParts.push(
+        revenueAssumptions
+          .price_per_customer_usd !==
+          null &&
+          revenueAssumptions
+            .price_per_customer_usd !==
+            undefined
+          ? `Current price per customer per month is ${revenueAssumptions.price_per_customer_usd} dollars.`
+          : "No price entered yet.",
+      );
+    } else {
+      speechParts.push(
+        `Options are ${priceTiers
+          .map((tier) => tier.label)
+          .join(", ")}.`,
+      );
+
+      speechParts.push(
+        selectedPrice
+          ? `Selected answer is ${selectedPrice}.`
+          : "No price option selected yet.",
+      );
+    }
+
+    speechParts.push(
+      customersQuestion,
+
+      revenueAssumptions
+        .initial_customers !==
+        null &&
+        revenueAssumptions
+          .initial_customers !==
+          undefined
+        ? `Current customer count is ${revenueAssumptions.initial_customers}.`
+        : "No customer count entered yet.",
+    );
+
+    if (isAdvanced) {
+      speechParts.push(
+        `${expectedGrowthLabel}. Current value is ${
+          revenueAssumptions
+            .monthly_growth_rate_pct ??
+          0
+        } percent.`,
+
+        `${grossMarginLabel}. Current value is ${
+          revenueAssumptions
+            .gross_margin_pct ??
+          70
+        } percent.`,
+      );
+    }
+
+    speechParts.push(
+      geographyQuestion,
+
+      `Options are ${geographyOptions
+        .map((geo) => geo.label)
+        .join(", ")}.`,
+
+      selectedGeography
+        ? `Selected geography is ${selectedGeography}.`
+        : "No geography selected yet.",
+
+      competitorsQuestion,
+
+      `Current competitors are ${competitors}.`,
+    );
+
+    if (isAdvanced) {
+      speechParts.push(
+        companyDetailsTitle,
+
+        companyMetrics
+          .total_funding_usd !==
+          null &&
+          companyMetrics
+            .total_funding_usd !==
+            undefined
+          ? `Funding raised is ${companyMetrics.total_funding_usd} dollars.`
+          : "No funding amount entered yet.",
+
+        companyMetrics
+          .funding_rounds !==
+          null &&
+          companyMetrics
+            .funding_rounds !==
+            undefined
+          ? `Funding rounds are ${companyMetrics.funding_rounds}.`
+          : "No funding rounds entered yet.",
+
+        companyMetrics
+          .founded_year !==
+          null &&
+          companyMetrics
+            .founded_year !==
+            undefined
+          ? `Company started in ${companyMetrics.founded_year}.`
+          : "No founding year entered yet.",
+
+        companyMetrics.country_code
+          ? `Company country is ${companyMetrics.country_code}.`
+          : "No company country entered yet.",
+      );
+    }
+
+    const speechText =
+      speechParts
+        .filter(Boolean)
+        .join(" ");
+
+    voiceAgent.speak(
+      speechText,
+      {
+        rate: 0.85,
+        pitch: 1,
+        volume: 1,
+        lang: "en-US",
+      },
+    );
+  }
+
   return (
     <div className="flex w-full max-w-[720px] flex-col gap-8">
-      {/* Page heading */}
+
+      {/* ======================================
+          TITLE + ONE GLOBAL SPEAKER
+          ====================================== */}
+
       <div>
-        <h1 className="font-forge-serif text-forge-6 font-semibold leading-[1.15] text-forge-text forge-sm:text-forge-7">
-          {t("additionalDetails.title")}
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="flex-1 font-forge-serif text-forge-6 font-semibold leading-[1.15] text-forge-text forge-sm:text-forge-7">
+            {title}
+          </h1>
+
+          <button
+            type="button"
+            onClick={speakWholePage}
+            aria-label="Read this page aloud"
+            title="Read this page aloud"
+            className="shrink-0 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-lg transition hover:bg-white/10"
+          >
+            🔊
+          </button>
+        </div>
 
         <p className="mt-3 text-forge-3 text-forge-text-secondary">
-          {t("additionalDetails.description")}
+          {description}
         </p>
       </div>
 
-      {/* Price */}
+      {/* ======================================
+          PRICE
+          ====================================== */}
+
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
-          {t("additionalDetails.price.question")}
+          {priceQuestion}
         </h2>
 
         {isAdvanced ? (
@@ -144,177 +413,278 @@ export function AdditionalDetailsScene({
             type="number"
             min={0}
             value={numberField(
-              revenueAssumptions.price_per_customer_usd,
+              revenueAssumptions
+                .price_per_customer_usd,
             )}
             onChange={(v) =>
               onRevenueAssumptionsChange({
                 price_per_customer_usd:
-                  v === "" ? null : Number(v),
+                  v === ""
+                    ? null
+                    : Number(v),
               })
             }
           />
         ) : (
           <div
             role="radiogroup"
-            aria-label={t("additionalDetails.price.question")}
+            aria-label={priceQuestion}
             className="grid grid-cols-2 gap-3 forge-sm:grid-cols-5"
           >
-            {priceTiers.map((tier) => (
-              <ChoiceCard
-                key={tier.label}
-                label={tier.label}
-                selected={
-                  revenueAssumptions.price_per_customer_usd ===
-                  tier.value
-                }
-                onSelect={() =>
-                  onRevenueAssumptionsChange({
-                    price_per_customer_usd: tier.value,
-                  })
-                }
-              />
-            ))}
+            {priceTiers.map(
+              (tier) => (
+                <ChoiceCard
+                  key={tier.label}
+                  label={tier.label}
+                  selected={
+                    revenueAssumptions
+                      .price_per_customer_usd ===
+                    tier.value
+                  }
+                  onSelect={() =>
+                    onRevenueAssumptionsChange({
+                      price_per_customer_usd:
+                        tier.value,
+                    })
+                  }
+                />
+              ),
+            )}
           </div>
         )}
       </div>
 
-      {/* Customers */}
+      {/* ======================================
+          CUSTOMERS
+          ====================================== */}
+
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
-          {t("additionalDetails.customers.question")}
+          {customersQuestion}
         </h2>
 
         <LabeledField
-          label={t("additionalDetails.customers.label")}
-          placeholder={t("additionalDetails.customers.placeholder")}
+          label={t(
+            "additionalDetails.customers.label",
+          )}
+          placeholder={t(
+            "additionalDetails.customers.placeholder",
+          )}
           type="number"
           min={0}
           value={numberField(
-            revenueAssumptions.initial_customers,
+            revenueAssumptions
+              .initial_customers,
           )}
           onChange={(v) =>
             onRevenueAssumptionsChange({
-              initial_customers: v === "" ? null : Number(v),
+              initial_customers:
+                v === ""
+                  ? null
+                  : Number(v),
             })
           }
         />
       </div>
 
-      {/* Advanced fields */}
+      {/* ======================================
+          ADVANCED REVENUE VALUES
+          ====================================== */}
+
       {isAdvanced && (
         <div className="grid grid-cols-1 gap-6 forge-sm:grid-cols-2">
-          <Slider
-            label="Expected monthly growth"
-            value={
-              revenueAssumptions.monthly_growth_rate_pct ?? 0
+          <LabeledField
+            label={
+              expectedGrowthLabel
             }
-            min={0}
-            max={50}
-            step={1}
-            formatValue={(v) => `${v}%`}
-            onChange={(v) =>
-              onRevenueAssumptionsChange({
-                monthly_growth_rate_pct: v,
-              })
-            }
+            value={String(
+              revenueAssumptions
+                .monthly_growth_rate_pct ??
+                0,
+            )}
+            readOnly
           />
 
-          <Slider
-            label="Gross margin (what's left after direct costs)"
-            value={revenueAssumptions.gross_margin_pct ?? 70}
-            min={0}
-            max={100}
-            step={5}
-            formatValue={(v) => `${v}%`}
-            onChange={(v) =>
-              onRevenueAssumptionsChange({
-                gross_margin_pct: v,
-              })
+          <LabeledField
+            label={
+              grossMarginLabel
             }
+            value={String(
+              revenueAssumptions
+                .gross_margin_pct ??
+                70,
+            )}
+            readOnly
           />
+
+          <div className="grid grid-cols-1 gap-6 forge-sm:col-span-2 forge-sm:grid-cols-2">
+            <Slider
+              label={
+                expectedGrowthLabel
+              }
+              value={
+                revenueAssumptions
+                  .monthly_growth_rate_pct ??
+                0
+              }
+              min={0}
+              max={50}
+              step={1}
+              formatValue={(v) =>
+                `${v}%`
+              }
+              onChange={(v) =>
+                onRevenueAssumptionsChange({
+                  monthly_growth_rate_pct:
+                    v,
+                })
+              }
+            />
+
+            <Slider
+              label={
+                grossMarginLabel
+              }
+              value={
+                revenueAssumptions
+                  .gross_margin_pct ??
+                70
+              }
+              min={0}
+              max={100}
+              step={5}
+              formatValue={(v) =>
+                `${v}%`
+              }
+              onChange={(v) =>
+                onRevenueAssumptionsChange({
+                  gross_margin_pct:
+                    v,
+                })
+              }
+            />
+          </div>
         </div>
       )}
 
-      {/* Geography */}
+      {/* ======================================
+          GEOGRAPHY
+          ====================================== */}
+
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
-          {t("additionalDetails.geography.question")}
+          {geographyQuestion}
         </h2>
 
         <div
           role="radiogroup"
-          aria-label={t("additionalDetails.geography.question")}
+          aria-label={
+            geographyQuestion
+          }
           className="grid grid-cols-2 gap-3 forge-sm:grid-cols-4"
         >
-          {geographyOptions.map((geo) => (
-            <ChoiceCard
-              key={geo.value}
-              label={geo.label}
-              selected={knownGeography === geo.value}
-              onSelect={() => {
-                if (geo.value === "Other") {
-                  setShowOtherGeography(true);
-
-                  onMarketEvidenceChange({
-                    geography:
-                      marketEvidence.geography &&
-                      knownGeography === "Other"
-                        ? marketEvidence.geography
-                        : "",
-                  });
-                } else {
-                  setShowOtherGeography(false);
-
-                  onMarketEvidenceChange({
-                    geography: geo.value,
-                  });
+          {geographyOptions.map(
+            (geo) => (
+              <ChoiceCard
+                key={geo.value}
+                label={geo.label}
+                selected={
+                  knownGeography ===
+                  geo.value
                 }
-              }}
-            />
-          ))}
+                onSelect={() => {
+                  if (
+                    geo.value ===
+                    "Other"
+                  ) {
+                    setShowOtherGeography(
+                      true,
+                    );
+
+                    onMarketEvidenceChange({
+                      geography:
+                        marketEvidence.geography &&
+                        knownGeography ===
+                          "Other"
+                          ? marketEvidence.geography
+                          : "",
+                    });
+                  } else {
+                    setShowOtherGeography(
+                      false,
+                    );
+
+                    onMarketEvidenceChange({
+                      geography:
+                        geo.value,
+                    });
+                  }
+                }}
+              />
+            ),
+          )}
         </div>
 
         {showOtherGeography && (
-          <TextField
-            label={t("additionalDetails.geography.question")}
+          <LabeledField
+            label={
+              geographyQuestion
+            }
             placeholder={t(
               "additionalDetails.geography.placeholder",
             )}
-            value={marketEvidence.geography ?? ""}
+            value={
+              marketEvidence.geography ??
+              ""
+            }
             onChange={(v) =>
               onMarketEvidenceChange({
-                geography: v || null,
+                geography:
+                  v || null,
               })
             }
           />
         )}
       </div>
 
-      {/* Competitors */}
+      {/* ======================================
+          COMPETITORS
+          ====================================== */}
+
       <div className="flex flex-col gap-3">
         <h2 className="font-forge-serif text-forge-4 font-semibold text-forge-text">
-          {t("additionalDetails.competitors.question")}
+          {competitorsQuestion}
         </h2>
 
         <TagInput
-          label={t("additionalDetails.competitors.label")}
+          label={t(
+            "additionalDetails.competitors.label",
+          )}
           placeholder={t(
             "additionalDetails.competitors.placeholder",
           )}
-          tags={marketEvidence.known_competitors ?? []}
+          tags={
+            marketEvidence
+              .known_competitors ??
+            []
+          }
           onChange={(tags) =>
             onMarketEvidenceChange({
-              known_competitors: tags,
+              known_competitors:
+                tags,
             })
           }
         />
       </div>
 
-      {/* Advanced company details */}
+      {/* ======================================
+          ADVANCED COMPANY DETAILS
+          ====================================== */}
+
       {isAdvanced && (
         <div className="flex flex-col gap-4 border-t border-forge-text/[.08] pt-6">
           <p className="text-forge-1 font-medium uppercase tracking-[0.1em] text-forge-text-tertiary">
-            Company details, if you already have a company
+            {companyDetailsTitle}
           </p>
 
           <div className="grid grid-cols-1 gap-4 forge-sm:grid-cols-2">
@@ -324,12 +694,15 @@ export function AdditionalDetailsScene({
               type="number"
               min={0}
               value={numberField(
-                companyMetrics.total_funding_usd,
+                companyMetrics
+                  .total_funding_usd,
               )}
               onChange={(v) =>
                 onCompanyMetricsChange({
                   total_funding_usd:
-                    v === "" ? null : Number(v),
+                    v === ""
+                      ? null
+                      : Number(v),
                 })
               }
             />
@@ -340,12 +713,15 @@ export function AdditionalDetailsScene({
               type="number"
               min={0}
               value={numberField(
-                companyMetrics.funding_rounds,
+                companyMetrics
+                  .funding_rounds,
               )}
               onChange={(v) =>
                 onCompanyMetricsChange({
                   funding_rounds:
-                    v === "" ? null : Number(v),
+                    v === ""
+                      ? null
+                      : Number(v),
                 })
               }
             />
@@ -357,12 +733,15 @@ export function AdditionalDetailsScene({
               min={1900}
               max={2100}
               value={numberField(
-                companyMetrics.founded_year,
+                companyMetrics
+                  .founded_year,
               )}
               onChange={(v) =>
                 onCompanyMetricsChange({
                   founded_year:
-                    v === "" ? null : Number(v),
+                    v === ""
+                      ? null
+                      : Number(v),
                 })
               }
             />
@@ -370,10 +749,15 @@ export function AdditionalDetailsScene({
             <LabeledField
               label="Which country is your company in?"
               placeholder="e.g. usa"
-              value={companyMetrics.country_code ?? ""}
+              value={
+                companyMetrics
+                  .country_code ??
+                ""
+              }
               onChange={(v) =>
                 onCompanyMetricsChange({
-                  country_code: v || null,
+                  country_code:
+                    v || null,
                 })
               }
             />

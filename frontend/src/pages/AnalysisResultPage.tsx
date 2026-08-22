@@ -1,73 +1,183 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+
 import { Reveal } from "../components/reveal/Reveal";
-import { ErrorBanner, LoadingBanner } from "../components/status/StatusBanner";
+import {
+  ErrorBanner,
+  LoadingBanner,
+} from "../components/status/StatusBanner";
 import { useAsync } from "../hooks/useAsync";
-import { getAnalysis, getStartup } from "../services/api";
-import { deleteHistoryEntry, recordAnalysis } from "../services/localHistory";
+import {
+  getAnalysis,
+  getStartup,
+} from "../services/api";
+import {
+  deleteHistoryEntry,
+  recordAnalysis,
+} from "../services/localHistory";
 
 export function AnalysisResultPage() {
-  const { analysisId } = useParams<{ analysisId: string }>();
-  const navigate = useNavigate();
-  const { data, loading, error, errorStatus, run } = useAsync(getAnalysis);
-  const [reanalyzing, setReanalyzing] = useState(false);
-  const [startupName, setStartupName] = useState<string | null>(null);
+  const { analysisId } =
+    useParams<{
+      analysisId: string;
+    }>();
 
+  const navigate = useNavigate();
+
+  const {
+    data,
+    loading,
+    error,
+    errorStatus,
+    run,
+  } = useAsync(getAnalysis);
+
+  const [
+    reanalyzing,
+    setReanalyzing,
+  ] = useState(false);
+
+  const [
+    startupName,
+    setStartupName,
+  ] = useState<string | null>(
+    null,
+  );
+
+  /*
+   * Load the current analysis.
+   */
   useEffect(() => {
-    if (analysisId) run(analysisId);
+    if (analysisId) {
+      run(analysisId);
+    }
   }, [analysisId, run]);
 
+  /*
+   * Remove a broken local-history
+   * reference if the analysis
+   * genuinely no longer exists.
+   */
   useEffect(() => {
-    // A 404 here means the backend has genuinely never heard of this ID (dev DB reset, manual
-    // deletion) — self-heal by pruning the matching local History row so it stops offering a
-    // permanently-broken "View" link, rather than leaving a stale reference around forever.
-    if (analysisId && errorStatus === 404) deleteHistoryEntry(analysisId);
-  }, [analysisId, errorStatus]);
+    if (
+      analysisId &&
+      errorStatus === 404
+    ) {
+      deleteHistoryEntry(
+        analysisId,
+      );
+    }
+  }, [
+    analysisId,
+    errorStatus,
+  ]);
 
+  /*
+   * Load the startup name when the
+   * analysis has completed.
+   */
   useEffect(() => {
-    if (!data || data.status !== "COMPLETED") return;
+    if (
+      !data ||
+      data.status !== "COMPLETED"
+    ) {
+      return;
+    }
+
     let cancelled = false;
+
     getStartup(data.startup_id)
       .then((startup) => {
-        if (cancelled) return;
-        recordAnalysis(startup.name, data);
-        // The Executive Hero (Operating System Sprint) needs the real startup name above the
-        // fold — this endpoint was already being fetched for local history, just not surfaced.
-        setStartupName(startup.name);
+        if (cancelled) {
+          return;
+        }
+
+        recordAnalysis(
+          startup.name,
+          data,
+        );
+
+        setStartupName(
+          startup.name,
+        );
       })
       .catch(() => {
-        /* Local history is a browser-side convenience only — a lookup failure here never blocks the Reveal itself. */
+        /*
+         * Startup-name lookup is only
+         * supplementary.
+         *
+         * A failure here must not block
+         * the final Reveal page.
+         */
       });
+
     return () => {
       cancelled = true;
     };
   }, [data]);
 
+  /*
+   * Start another analysis using
+   * the existing status/polling flow.
+   */
   function handleReanalyze() {
-    if (!data) return;
+    if (!data) {
+      return;
+    }
+
     setReanalyzing(true);
-    // Route through the same polling status page a first-time analysis uses
-    // (`EvidenceCollectionPage.tsx` navigates here too) rather than creating the analysis here
-    // and jumping straight to Reveal. `POST /startups/{id}/analyze` returns immediately with the
-    // row still RUNNING (see AnalysisStatusPage's own docstring) — fetching it once and rendering
-    // Reveal right away meant `mentor_interpretation` was reliably still null, producing "This
-    // analysis has no mentor interpretation to reveal." `AnalysisStatusPage` already knows how to
-    // create the analysis *and* poll it via `useAnalysisProgress` until it's genuinely COMPLETED
-    // before navigating to Reveal — reusing it here fixes the root cause instead of adding a
-    // second polling implementation.
-    navigate(`/startups/${data.startup_id}/status`);
+
+    navigate(
+      `/startups/${data.startup_id}/status`,
+    );
   }
 
-  if (loading || error || !data) {
+  /*
+   * Loading / error state.
+   */
+  if (
+    loading ||
+    error ||
+    !data
+  ) {
     return (
       <main className="min-h-[100dvh] font-forge-sans">
         <div className="mx-auto max-w-[860px] px-6 py-20 forge-sm:px-10">
-          {loading && <LoadingBanner message="Loading analysis..." />}
-          {error && <ErrorBanner message={error} />}
+          {loading && (
+            <LoadingBanner message="Loading analysis..." />
+          )}
+
+          {error && (
+            <ErrorBanner
+              message={error}
+            />
+          )}
         </div>
       </main>
     );
   }
 
-  return <Reveal analysis={data} onReanalyze={handleReanalyze} reanalyzing={reanalyzing} startupName={startupName} />;
+  /*
+   * FINAL RESULT PAGE
+   *
+   * IMPORTANT:
+   * Reveal.tsx owns the ONE global
+   * speaker for the complete output.
+   *
+   * Do not add another speaker here.
+   */
+  return (
+    <Reveal
+      analysis={data}
+      onReanalyze={
+        handleReanalyze
+      }
+      reanalyzing={
+        reanalyzing
+      }
+      startupName={
+        startupName
+      }
+    />
+  );
 }

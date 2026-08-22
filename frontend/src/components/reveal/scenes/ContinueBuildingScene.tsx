@@ -1,15 +1,10 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Analysis } from "../../../types/api";
 import { Button } from "../../../primitives";
 import { Scene } from "../Scene";
 
-/** Scene 8 — Continue Building. Everything operational: re-analyze, export, history, start
- * another venture. Replaces the old sticky CommandBar — moved from persistent chrome into its own
- * final scene, so nothing operational competes with the narrative above it. Export now generates
- * a real presentation-quality PDF (see `utils/generatePdf.ts`) instead of a raw JSON download —
- * dynamically imported on click rather than statically, so `pdf-lib` (a genuinely large library)
- * never loads for the ~99% of Reveal-page visits that don't click Export. */
+/** Final operational scene. */
 export function ContinueBuildingScene({
   analysis,
   onReanalyze,
@@ -25,33 +20,95 @@ export function ContinueBuildingScene({
 
   async function handleExport() {
     setExporting(true);
+
     try {
-      const { generateAnalysisPdf } = await import("../../../utils/generatePdf");
-      await generateAnalysisPdf(analysis, startupName);
+      const { generateAnalysisPdf } = await import(
+        "../../../utils/generatePdf"
+      );
+
+      await generateAnalysisPdf(
+        analysis,
+        startupName,
+      );
     } finally {
       setExporting(false);
     }
   }
 
+  const nextTitle = "What's next?";
+
+  const reanalyzeText = reanalyzing
+    ? "Re-analyzing"
+    : "Re-analyze";
+
+  const exportText = exporting
+    ? "Preparing PDF"
+    : "Export PDF";
+
+  const venturesText = "Your ventures";
+  const anotherVentureText = "Start another venture";
+
   return (
     <Scene eyebrow="Continue Building">
-      <h2 className="max-w-[26ch] text-balance font-forge-serif text-forge-5 font-semibold leading-[1.25] text-forge-text">
-        What's next?
-      </h2>
+      <div className="flex items-start gap-3">
+        <h2 className="max-w-[26ch] flex-1 text-balance font-forge-serif text-forge-5 font-semibold leading-[1.25] text-forge-text">
+          {nextTitle}
+        </h2>
+
+        
+      </div>
+
       <div className="mt-8 flex flex-wrap gap-3">
-        <Button variant="primary" onClick={onReanalyze} disabled={reanalyzing}>
-          {reanalyzing ? "Re-analyzing…" : "Re-analyze"}
-        </Button>
-        <Button variant="secondary" onClick={handleExport} disabled={exporting}>
-          {exporting ? "Preparing PDF…" : "Export PDF"}
-        </Button>
-        <Link to="/history">
-          <Button variant="secondary">Your ventures</Button>
-        </Link>
-        <Link to="/">
-          <Button variant="ghost">Start another venture</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="primary"
+            onClick={onReanalyze}
+            disabled={reanalyzing}
+          >
+            {reanalyzing
+              ? "Re-analyzingâ€¦"
+              : "Re-analyze"}
+          </Button>
+
+          
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            disabled={exporting}
+          >
+            {exporting
+              ? "Preparing PDFâ€¦"
+              : "Export PDF"}
+          </Button>
+
+          
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link to="/history">
+            <Button variant="secondary">
+              Your ventures
+            </Button>
+          </Link>
+
+          
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link to="/">
+            <Button variant="ghost">
+              Start another venture
+            </Button>
+          </Link>
+
+          
+        </div>
       </div>
     </Scene>
   );
 }
+
+
